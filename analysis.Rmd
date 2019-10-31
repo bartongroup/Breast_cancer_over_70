@@ -1,0 +1,135 @@
+---
+title: "Breast cancer"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache=FALSE)
+library(tidyverse)
+library(viridis)
+```
+
+```{r read_data}
+dat <- read_tsv("~/Desktop/surv.txt", col_types = cols()) %>% 
+  rename(Diagnostic = "Diagnostic route") %>% 
+  mutate(Outcome = tolower(Outcome)) %>% 
+  mutate_at(vars(-Individual), as.factor)
+
+sdat <- dat %>% group_by(Outcome, Diagnostic, Age) %>% tally %>% ungroup
+```
+
+```{r plot_fun}
+plotData <- function(d, what="Outcome") {
+ d %>% 
+  group_by(Age) %>% 
+  mutate(p = n / sum(n)) %>% 
+  ungroup %>% 
+ggplot(aes_string(x=what, y="p")) +
+  theme_linedraw() +
+  geom_col(aes(fill=Diagnostic)) +
+  facet_wrap(~Age, ncol=5) +
+  scale_fill_viridis_d() +
+  theme(axis.text.x = element_text(angle=45, hjust=1), panel.grid = element_blank()) +
+  scale_y_continuous(expand=c(0,0), limits=c(0,1))
+}
+```
+
+```{r plot1, fig.width=10, fig.height=6}
+sdat %>% 
+  plotData
+```
+
+```{r plot2, fig.width=10, fig.height=6}
+sdat %>% 
+  mutate(Outcome = recode(Outcome,
+                          "indirect_bc_death" = "other death",
+                          "unrelated_bc_death" = "other death",
+                          "unrelated_death" = "other death")) %>% 
+  plotData
+```
+
+```{r plot3, fig.width=10, fig.height=6}
+sdat %>% 
+  filter(Outcome != "survival") %>% 
+  mutate(Outcome = recode(Outcome,
+                          "indirect_bc_death" = "other bc death",
+                          "unrelated_bc_death" = "other bc death",
+                          "unrelated_death" = "unrelated death")) %>% 
+  plotData
+```
+
+```{r plot4, fig.width=10, fig.height=6}
+sdat %>% 
+  filter(Outcome != "survival") %>% 
+  mutate(Outcome = recode(Outcome,
+                          "indirect_bc_death" = "other death",
+                          "unrelated_bc_death" = "other death",
+                          "unrelated_death" = "other death")) %>% 
+  plotData
+```
+
+```{r plot5, fig.width=10, fig.height=6}
+sdat %>% 
+  mutate(Outcome = recode(Outcome,
+                          "indirect_bc_death" = "other outcome",
+                          "unrelated_bc_death" = "other outcome",
+                          "unrelated_death" = "other outcome",
+                          "survival" = "other outcome")) %>% 
+  plotData
+```
+
+
+```{r plot6, fig.width=10, fig.height=6}
+sdat %>% 
+  plotData(what = "Diagnostic")
+```
+
+```{r screen_plot_fun}
+plotScreen <- function(d) {
+  d %>% 
+    group_by(Age, Outcome) %>% 
+    summarise(s = sum(n[Diagnostic == "screen"]), tot = sum(n), p = s / tot) %>% 
+    ungroup %>% 
+ggplot(aes(x=Outcome, y=p)) +
+  theme_linedraw() +
+  geom_col() +
+  facet_wrap(~Age, ncol=5, scales = "free_y") +
+  scale_fill_viridis_d() +
+  theme(axis.text.x = element_text(angle=45, hjust=1), panel.grid = element_blank()) +
+    labs(x=NULL, y="Screen proportion")
+}
+```
+
+```{r plot_screen_1, fig.width=10, fig.height=6, eval=FALSE}
+sdat %>% 
+  mutate(Outcome = recode(Outcome,
+                          "indirect_bc_death" = "other outcome",
+                          "unrelated_bc_death" = "other outcome",
+                          "unrelated_death" = "other outcome",
+                          "survival" = "other outcome")) %>% 
+  plotScreen
+```
+
+```{r death_plot_fun}
+plotDeath <- function(d) {
+  d %>% 
+    mutate(Diagnostic = recode(Diagnostic, "sympto" = "unscreened", "other" = "unscreened")) %>% 
+    group_by(Age, Diagnostic) %>% 
+    summarise(s = sum(n[Outcome == "direct_bc_death"]), tot = sum(n), f = tot - s, p = s / tot) %>%     mutate(lab = paste0(s, "/", tot)) %>% 
+    ungroup %>% 
+  ggplot(aes(x=Diagnostic, y=p)) +
+    theme_linedraw() +
+    geom_col(fill="goldenrod", colour="black") +
+    facet_wrap(~Age, ncol=5, scales = "free_y") +
+    scale_fill_viridis_d() +
+    theme(axis.text.x = element_text(angle=45, hjust=1), panel.grid = element_blank()) +
+    labs(x=NULL, y="Direct BC death proportion") +
+    geom_text(aes(label = lab), vjust=1.2, size=3)
+}
+```
+
+
+```{r plot_death_1, fig.width=10, fig.height=6}
+sdat %>% 
+  plotDeath
+```
