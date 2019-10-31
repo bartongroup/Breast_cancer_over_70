@@ -1,0 +1,32 @@
+---
+title: "Breast cancer data analysis"
+output:
+  html_notebook:
+    css: tabbed_notebook.css
+---
+
+
+```{r setup_nb, include=FALSE}
+library(knitr)
+library(ggplot2)
+options(width = 100)
+
+opts_chunk$set(
+  warning=FALSE,
+  message=FALSE,
+  include=FALSE
+)
+```
+
+Collaborators: [Sarah Savaridas]()
+
+[Proposal]()
+
+# 31/10/2019
+
+Data received. Done some preliminary analysis. Meeting with Sarah. What to do:
+
+- linear model of death proportion as a function of age
+- do it separately for BC deaths vs other outcome, other deaths vs other outcome
+- do it separately for symptomatic and screened
+- remove diagnostic "other"

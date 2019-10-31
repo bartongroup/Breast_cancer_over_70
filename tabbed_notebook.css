@@ -1,0 +1,38 @@
+pre code {
+  white-space: pre !important;
+  overflow-x: scroll !important;
+  word-break: keep-all !important;
+  word-wrap: initial !important;
+}
+h3.title {
+  font-size: 28px;
+  color: DarkRed;
+  margin-bottom:72px;
+}
+h3.title:after
+{
+    content:' ';
+    display:block;
+    border:0 solid white;
+}
+h3 {
+  font-size: 22px;
+  color: DarkBlue;
+  margin-top: 36px;
+}
+h3:after
+{
+    content:' ';
+    display:block;
+    border:0.5px solid grey;
+}
+h4 {
+  font-size: 20px;
+  color: DarkGreen;
+  margin-top: 36px;
+}
+h5 {
+  font-size: 18px;
+  color: black;
+  margin-top: 36px;
+}

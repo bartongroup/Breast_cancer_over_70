@@ -1,0 +1,36 @@
+pre code {
+  white-space: pre !important;
+  overflow-x: scroll !important;
+  word-break: keep-all !important;
+  word-wrap: initial !important;
+}
+h1.title {
+  font-size: 38px;
+  color: DarkRed;
+  margin-bottom:72px;
+}
+h1.title:after
+{
+    content:' ';
+    display:block;
+    border:0 solid white;
+}
+h1 {
+  font-size: 24px;
+  color: DarkBlue;
+}
+h1:after
+{
+    content:' ';
+    display:block;
+    border:0.5px solid grey;
+}
+h2 { /* Header 2 */
+    font-size: 22px;
+  color: DarkBlue;
+}
+h3 { /* Header 3 */
+  font-size: 18px;
+  font-family: "Times New Roman", Times, serif;
+  color: DarkBlue;
+}

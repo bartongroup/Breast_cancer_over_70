@@ -1,21 +1,34 @@
 ---
 title: "Breast cancer"
-output: html_document
+output:
+  html_document:
+    css: tabbed_notebook.css
+
 ---
 
+Collaborators: [Sarah Savaridas]()
+
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, cache=FALSE)
+knitr::opts_chunk$set(echo = FALSE, cache=TRUE)
 library(tidyverse)
-library(viridis)
+cbPalette <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 ```
 
 ```{r read_data}
-dat <- read_tsv("~/Desktop/surv.txt", col_types = cols()) %>% 
+dat <- read_tsv("surv.txt", col_types = cols()) %>% 
   rename(Diagnostic = "Diagnostic route") %>% 
   mutate(Outcome = tolower(Outcome)) %>% 
-  mutate_at(vars(-Individual), as.factor)
+  filter(Diagnostic != "other" & Age != "16-20") %>% 
+  mutate_at(vars(Outcome, Diagnostic, Age), as_factor)
 
-sdat <- dat %>% group_by(Outcome, Diagnostic, Age) %>% tally %>% ungroup
+sdat <- dat %>% group_by(Outcome, Diagnostic, Age) %>%
+  tally %>%
+  ungroup %>% 
+  separate(Age, c("start", "end"), remove=FALSE) %>% 
+  mutate(end = ifelse(end == "", "90", end)) %>% 
+  mutate_at(vars(start, end), as.numeric) %>% 
+  mutate(Midage = (start + end)/2) %>% 
+  select(-start, -end)
 ```
 
 ```{r plot_fun}
@@ -28,7 +41,7 @@ ggplot(aes_string(x=what, y="p")) +
   theme_linedraw() +
   geom_col(aes(fill=Diagnostic)) +
   facet_wrap(~Age, ncol=5) +
-  scale_fill_viridis_d() +
+  scale_fill_manual(values = cbPalette) +
   theme(axis.text.x = element_text(angle=45, hjust=1), panel.grid = element_blank()) +
   scale_y_continuous(expand=c(0,0), limits=c(0,1))
 }
@@ -94,7 +107,7 @@ ggplot(aes(x=Outcome, y=p)) +
   theme_linedraw() +
   geom_col() +
   facet_wrap(~Age, ncol=5, scales = "free_y") +
-  scale_fill_viridis_d() +
+  scale_fill_manual(values = cbPalette) +
   theme(axis.text.x = element_text(angle=45, hjust=1), panel.grid = element_blank()) +
     labs(x=NULL, y="Screen proportion")
 }
@@ -121,7 +134,7 @@ plotDeath <- function(d) {
     theme_linedraw() +
     geom_col(fill="goldenrod", colour="black") +
     facet_wrap(~Age, ncol=5, scales = "free_y") +
-    scale_fill_viridis_d() +
+    scale_fill_manual(values = cbPalette) +
     theme(axis.text.x = element_text(angle=45, hjust=1), panel.grid = element_blank()) +
     labs(x=NULL, y="Direct BC death proportion") +
     geom_text(aes(label = lab), vjust=1.2, size=3)
@@ -132,4 +145,50 @@ plotDeath <- function(d) {
 ```{r plot_death_1, fig.width=10, fig.height=6}
 sdat %>% 
   plotDeath
+```
+
+```{r find_proportion_function}
+findOutcomeProportion <- function(d, value, others) {
+  ds <- d %>% 
+    group_by(Diagnostic, Age) %>% 
+    summarise(s = sum(n[Outcome == value]), f = sum(n[Outcome %in% others]), n = s + f,  p = s / n, Midage = Midage[1]) %>%
+    filter(s > 0 & f > 0) %>% 
+    ungroup
+  
+  properr <- ds %>%
+    mutate(row = row_number()) %>% 
+    group_by(row) %>%
+    do({
+      ci <- prop.test(.$s, .$n)$conf.int
+      tibble(p_lo = ci[1], p_up = ci[2])
+    }) %>% 
+    ungroup
+  
+  bind_cols(ds, select(properr, p_lo, p_up))
+}
+
+plotOutcomeProportion <- function(d, value, others, ylab=NULL) {
+  if(is.null(ylab)) ylab <- paste(value, "proportion")
+  d %>% 
+    findOutcomeProportion(value, others) %>% 
+  ggplot(aes(x=Midage, y=p, group=Diagnostic, colour = Diagnostic)) +
+    theme_linedraw() +
+    theme(panel.grid = element_blank()) +
+    geom_errorbar(aes(x=Midage, ymin=p_lo, ymax=p_up, colour=Diagnostic), width=1) +
+    geom_point(size=2) +
+    labs(x = "Age", y = ylab) +
+    geom_smooth(method="lm", formula=y ~ poly(x, 2), se=FALSE) +
+    scale_colour_manual(values = cbPalette)
+}
+```
+
+```{r age_death_bc_proportion, fig.width=6, fig.height=3}
+plotOutcomeProportion(sdat, value = "direct_bc_death", others = c("indirect_bc_death", "unrelated_death", "unrelated_bc_death"), ylab = "Direct BC deaths / all deaths")   
+
+plotOutcomeProportion(sdat, value = "unrelated_death", others = c("indirect_bc_death", "direct_bc_death", "unrelated_bc_death"), ylab = "Unrelated deaths / all deaths")
+
+plotOutcomeProportion(sdat, value = "direct_bc_death", others = c("indirect_bc_death", "unrelated_death", "unrelated_bc_death", "survival"), ylab = "Direct BC deaths / all outcomes")  
+
+plotOutcomeProportion(sdat, value = "unrelated_death", others = c("indirect_bc_death", "direct_bc_death", "unrelated_bc_death", "survival"), ylab = "Unrelated deaths / all outcomes")
+
 ```
