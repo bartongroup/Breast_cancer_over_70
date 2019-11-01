@@ -1,5 +1,7 @@
 ---
 title: "Breast cancer data analysis"
+author: "Marek Gierlinski"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
   html_document:
     css: nice_notebook.css
@@ -17,18 +19,14 @@ cbPalette <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00",
 ```
 
 
-```{r kable_functions}
+```{r global_functions}
 myKable <- function(df, row.names=FALSE, col.names=NA, digits=2, bootstrap="condensed", font.size=12, label=NULL) {
   kable(df, format="html", row.names=row.names, col.names=col.names, digits=digits, label=label) %>% kable_styling(bootstrap_options=bootstrap, full_width=FALSE, position="left", font_size=font.size)
 }
+N <- function(n) prettyNum(n, big.mark = ",")
 ```
 
 # Data
-
-We filter input data by removing Outcome = "other" and age range 16-20. 
-
-
-# A few plots
 
 ```{r read_data}
 dat <- read_tsv("surv.txt", col_types = cols()) %>% 
@@ -47,6 +45,20 @@ sdat <- dat %>% group_by(Outcome, Diagnostic, Age) %>%
   mutate(Midage = (start - 1 + end)/2) %>% 
   select(-start, -end)
 ```
+
+We filter input data by removing Outcome = "other" and age range 16-20. After this filtering we have `r N(nrow(dat))` patients.
+
+We generally group data by Age, Diagnostic and Outcome. Then, we combine various subgroups. Here are the full data group counts:
+
+```{r full_data}
+sdat %>% select(Age, Diagnostic, Outcome, n) %>% 
+  arrange(Age, Diagnostic, Outcome) %>% 
+  myKable %>% scroll_box(width="300px", height="400px")
+```
+
+
+# A few plots
+
 
 ```{r plot_fun}
 plotData <- function(d, what="Outcome") {

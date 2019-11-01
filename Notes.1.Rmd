@@ -30,3 +30,9 @@ Data received. Done some preliminary analysis. Meeting with Sarah. What to do:
 - do it separately for BC deaths vs other outcome, other deaths vs other outcome
 - do it separately for symptomatic and screened
 - remove diagnostic "other"
+
+# 1/11/2019
+
+Working on the document. Doing proportion time-courses. This seems to give convincing results.
+
+
