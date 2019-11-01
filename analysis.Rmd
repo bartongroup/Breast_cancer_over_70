@@ -70,7 +70,7 @@ plotData <- function(d, what="Outcome") {
 ggplot(aes_string(x=what, y="p")) +
   theme_linedraw() +
   geom_col(aes(fill=Diagnostic)) +
-  facet_wrap(~Age, ncol=5) +
+  facet_wrap(~Age, ncol=13) +
   scale_fill_manual(values = cbPalette) +
   theme(axis.text.x = element_text(angle=45, hjust=1), panel.grid = element_blank()) +
   scale_y_continuous(expand=c(0,0), limits=c(0,1))
@@ -79,14 +79,14 @@ ggplot(aes_string(x=what, y="p")) +
 
 ## Basic grouping
 
-```{r plot1, fig.width=10, fig.height=6}
+```{r plot1, fig.width=10, fig.height=3}
 sdat %>% 
   plotData
 ```
 
 ## Other deaths together
 
-```{r plot2, fig.width=10, fig.height=6}
+```{r plot2, fig.width=10, fig.height=3}
 sdat %>% 
   mutate(Outcome = recode(Outcome,
                           "indirect_bc_death" = "other death",
@@ -97,7 +97,7 @@ sdat %>%
 
 ## Survival excluded
 
-```{r plot3, fig.width=10, fig.height=6}
+```{r plot3, fig.width=10, fig.height=3}
 sdat %>% 
   filter(Outcome != "survival") %>% 
   mutate(Outcome = recode(Outcome,
@@ -107,7 +107,7 @@ sdat %>%
   plotData
 ```
 
-```{r plot4, fig.width=10, fig.height=6}
+```{r plot4, fig.width=10, fig.height=3}
 sdat %>% 
   filter(Outcome != "survival") %>% 
   mutate(Outcome = recode(Outcome,
@@ -119,7 +119,7 @@ sdat %>%
 
 ## All other outcomes together (survival included)
 
-```{r plot5, fig.width=10, fig.height=6}
+```{r plot5, fig.width=10, fig.height=3}
 sdat %>% 
   mutate(Outcome = recode(Outcome,
                           "indirect_bc_death" = "other outcome",
@@ -131,7 +131,7 @@ sdat %>%
 
 ## Diagnostic distribution
 
-```{r plot6, fig.width=10, fig.height=6}
+```{r plot6, fig.width=10, fig.height=3}
 sdat %>% 
   plotData(what = "Diagnostic")
 ```
@@ -145,14 +145,14 @@ plotScreen <- function(d) {
 ggplot(aes(x=Outcome, y=p)) +
   theme_linedraw() +
   geom_col() +
-  facet_wrap(~Age, ncol=5, scales = "free_y") +
+  facet_wrap(~Age, ncol=13, scales = "free_y") +
   scale_fill_manual(values = cbPalette) +
   theme(axis.text.x = element_text(angle=45, hjust=1), panel.grid = element_blank()) +
     labs(x=NULL, y="Screen proportion")
 }
 ```
 
-```{r plot_screen_1, fig.width=10, fig.height=6, eval=FALSE}
+```{r plot_screen_1, fig.width=10, fig.height=3, eval=FALSE}
 sdat %>% 
   mutate(Outcome = recode(Outcome,
                           "indirect_bc_death" = "other outcome",
@@ -173,7 +173,7 @@ plotDeath <- function(d) {
   ggplot(aes(x=Diagnostic, y=p)) +
     theme_linedraw() +
     geom_col(fill="goldenrod", colour="black") +
-    facet_wrap(~Age, ncol=5, scales = "free_y") +
+    facet_wrap(~Age, ncol=7, scales = "free_y") +
     scale_fill_manual(values = cbPalette) +
     theme(axis.text.x = element_text(angle=45, hjust=1), panel.grid = element_blank()) +
     labs(x=NULL, y="Direct BC death proportion") +
@@ -183,7 +183,9 @@ plotDeath <- function(d) {
 
 ## Direct BC death vs diagnostic
 
-```{r plot_death_1, fig.width=10, fig.height=6}
+These plots include actual counts in each proportion.
+
+```{r plot_death_1, fig.width=10, fig.height=4}
 sdat %>% 
   plotDeath
 ```
@@ -191,7 +193,7 @@ sdat %>%
 
 # Proportion analysis
 
-Here, we group data by age and diagnostic route. In each age group we find a proportion of either a direct BC death or an unrelated death with respect to all types of deaths or all possible outcomes.
+Here, we group data by age and diagnostic route. In each age group we find a proportion of either direct BC deaths or unrelated deaths with respect to all types of deaths or all possible outcomes.
 
 ## Proportion plots
 
@@ -223,20 +225,20 @@ findOutcomeProportion <- function(d, value, others) {
   bind_cols(ds, select(properr, p_lo, p_up, se))
 }
 
-plotOutcomeProportion <- function(d, value, others, ylab=NULL) {
-  if(is.null(ylab)) ylab <- paste(value, "proportion")
+plotOutcomeProportion <- function(d, value, others, tit=NULL) {
+  if(is.null(tit)) tit <- paste(value, "proportion")
   pd <- position_dodge(width=0.35)
   d %>% 
     findOutcomeProportion(value, others) %>% 
   ggplot(aes(x=Age, y=p, group=Diagnostic, colour = Diagnostic)) +
     theme_linedraw() +
     theme(panel.grid = element_blank(), axis.text.x=element_text(angle=45, hjust=1)) +
-    geom_errorbar(aes(x=Age, ymin=p_lo, ymax=p_up, colour=Diagnostic), width=0.3, position=pd) +
-    geom_point(size=2, position=pd) +
+    geom_errorbar(aes(x=Age, ymin=p_lo, ymax=p_up, colour=Diagnostic), width=0.35, position=pd) +
+    geom_point(size=1.5, position=pd) +
     geom_vline(xintercept = seq(0.5,20,1), colour="grey90") +
-    labs(x = "Age group", y = "Proportion", title=ylab) +
-    #geom_smooth(method="lm", formula=y ~ poly(x, 2), se=FALSE) +
-    scale_colour_manual(values = cbPalette)
+    labs(x = "Age group", y = "Proportion", title=tit) +
+    scale_colour_manual(values = cbPalette) +
+    scale_y_continuous(limits=c(0,1))
 }
 ```
 
@@ -257,11 +259,11 @@ cases <- list(
 )
 ```
 
-```{r age_death_bc_proportion, fig.width=6, fig.height=10}
+```{r age_death_bc_proportion, fig.width=6, fig.height=12}
 map(cases, function(case) {
-  plotOutcomeProportion(sdat, value = case$value, others = case$others, ylab = case$name)   
+  plotOutcomeProportion(sdat, value = case$value, others = case$others, tit = case$name)   
 }) %>% 
-  plot_grid(plotlist = ., ncol=1)
+  plot_grid(plotlist = ., ncol=1)  
 ```
 
 We see that screened patients consistently show lower breast cancer death proportion at most age groups. The unrelated deaths / all deaths are higher for screened patients, because these are essentially the inversion of the BC deaths (that is, unrelated deaths and BC deaths add up to total deaths, apart from two other categories - indirect BC death and unrelated BC death).
@@ -312,5 +314,47 @@ As we mostly see very small p-values (practically zero) the p-value inflation is
 
 Direct BC death proportions are much smaller in screened patients than in the symptomatic patients. The effect cannot be attributed to general differences between the two groups, e.g. because of a healthier life style. When we look at unrelated deaths, the difference between the two groups are much smaller.
 
+# Alternative visualization
+
+I replace are range with the middle of the range and fit numerical data with a third-degree polynomial, taking standard errors into account. Here is what the models look like.
 
 
+```{r fit_funs}
+fitData <- function(d, value, others) {
+  d %>% 
+    findOutcomeProportion(value, others) %>% 
+    select(x=Midage, y=p, se, Diagnostic) %>% 
+    group_split(Diagnostic) %>% 
+    map_df(function(w) {
+      m <- nls(y ~ A + B*x + C*x^2 + D*x^3, start=list(A=0.2, B=0, C=0, D=0), weights=1/se^2, data=w)
+      xd <- tibble(x=seq(min(w$x),max(w$x),1))
+      tibble(Diagnostic=w$Diagnostic[1], x=xd$x, y=predict(m, xd))
+    })
+}
+
+plotFitData <- function(d, value, others, tit=NULL) {
+  if(is.null(tit)) tit <- paste(value, "proportion")
+  
+  dat <- d %>% 
+    findOutcomeProportion(value, others)
+  mod <- fitData(d, value, others)
+  
+  ggplot(data=dat, aes(x=Midage, y=p, group=Diagnostic, colour = Diagnostic)) +
+    theme_linedraw() +
+    theme(panel.grid = element_blank()) +
+    geom_errorbar(aes(x=Midage, ymin=p_lo, ymax=p_up, colour=Diagnostic), width=0.2) +
+    geom_point(size=1.5) +
+    labs(x = "Age group", y = "Proportion", title=tit) +
+    scale_colour_manual(values = cbPalette) +
+    scale_y_continuous(limits=c(0,1)) +
+    geom_line(data=mod, aes(x=x, y=y, colour=Diagnostic))
+}
+```
+
+
+```{r age_model, fig.width=6, fig.height=12}
+map(cases, function(case) {
+  plotFitData(sdat, value = case$value, others = case$others, tit = case$name)   
+}) %>% 
+  plot_grid(plotlist = ., ncol=1) 
+```
