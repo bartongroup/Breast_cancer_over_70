@@ -18,7 +18,7 @@ opts_chunk$set(
 )
 ```
 
-Collaborators: [Sarah Savaridas]()
+Collaborators: [Sarah Savaridas](https://www.dundee.ac.uk/people/sarah-savaridas), [Andrew Evans](https://www.dundee.ac.uk/people/andrew-evans)
 
 [Proposal]()
 
