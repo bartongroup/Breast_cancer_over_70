@@ -1,9 +1,8 @@
 ---
-title: "Breast cancer"
+title: "Breast cancer data analysis"
 output:
   html_document:
-    css: tabbed_notebook.css
-
+    css: nice_notebook.css
 ---
 
 Collaborators: [Sarah Savaridas]()
@@ -11,14 +10,32 @@ Collaborators: [Sarah Savaridas]()
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, cache=TRUE)
 library(tidyverse)
+library(cowplot)
+library(knitr)
+library(kableExtra)
 cbPalette <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 ```
+
+
+```{r kable_functions}
+myKable <- function(df, row.names=FALSE, col.names=NA, digits=2, bootstrap="condensed", font.size=12, label=NULL) {
+  kable(df, format="html", row.names=row.names, col.names=col.names, digits=digits, label=label) %>% kable_styling(bootstrap_options=bootstrap, full_width=FALSE, position="left", font_size=font.size)
+}
+```
+
+# Data
+
+We filter input data by removing Outcome = "other" and age range 16-20. 
+
+
+# A few plots
 
 ```{r read_data}
 dat <- read_tsv("surv.txt", col_types = cols()) %>% 
   rename(Diagnostic = "Diagnostic route") %>% 
   mutate(Outcome = tolower(Outcome)) %>% 
   filter(Diagnostic != "other" & Age != "16-20") %>% 
+  mutate(Diagnostic = recode(Diagnostic, "sympto" = "symptoms", "screen" = "screening")) %>% 
   mutate_at(vars(Outcome, Diagnostic, Age), as_factor)
 
 sdat <- dat %>% group_by(Outcome, Diagnostic, Age) %>%
@@ -27,7 +44,7 @@ sdat <- dat %>% group_by(Outcome, Diagnostic, Age) %>%
   separate(Age, c("start", "end"), remove=FALSE) %>% 
   mutate(end = ifelse(end == "", "90", end)) %>% 
   mutate_at(vars(start, end), as.numeric) %>% 
-  mutate(Midage = (start + end)/2) %>% 
+  mutate(Midage = (start - 1 + end)/2) %>% 
   select(-start, -end)
 ```
 
@@ -128,7 +145,8 @@ plotDeath <- function(d) {
   d %>% 
     mutate(Diagnostic = recode(Diagnostic, "sympto" = "unscreened", "other" = "unscreened")) %>% 
     group_by(Age, Diagnostic) %>% 
-    summarise(s = sum(n[Outcome == "direct_bc_death"]), tot = sum(n), f = tot - s, p = s / tot) %>%     mutate(lab = paste0(s, "/", tot)) %>% 
+    summarise(s = sum(n[Outcome == "direct_bc_death"]), tot = sum(n), f = tot - s, p = s / tot) %>%
+    mutate(lab = paste0(s, "/", tot)) %>% 
     ungroup %>% 
   ggplot(aes(x=Diagnostic, y=p)) +
     theme_linedraw() +
@@ -147,6 +165,19 @@ sdat %>%
   plotDeath
 ```
 
+
+# Proportion analysis
+
+Here, we group data by age and diagnostic route. In each age group we find a proportion of either a direct BC death or an unrelated death with respect to all types of deaths or all possible outcomes.
+
+## Proportion plots
+
+These proportions are shown in plots below. Error bars are standard errors of a proportion:
+
+\[SE_i = \sqrt{\frac{p_i(1-p_i)}{n_i}},\]
+
+where $p_i$ is the proportion of selected cases and $n_i$ is the total number of cases, $i$ is the age group index.
+
 ```{r find_proportion_function}
 findOutcomeProportion <- function(d, value, others) {
   ds <- d %>% 
@@ -159,36 +190,102 @@ findOutcomeProportion <- function(d, value, others) {
     mutate(row = row_number()) %>% 
     group_by(row) %>%
     do({
-      ci <- prop.test(.$s, .$n)$conf.int
-      tibble(p_lo = ci[1], p_up = ci[2])
+      #ci <- prop.test(.$s, .$n)$conf.int
+      #tibble(p_lo = ci[1], p_up = ci[2])
+      se <- sqrt(.$p * (1 - .$p) / .$n)
+      tibble(p_lo = .$p - se, p_up = .$p + se, se = se)
     }) %>% 
     ungroup
   
-  bind_cols(ds, select(properr, p_lo, p_up))
+  bind_cols(ds, select(properr, p_lo, p_up, se))
 }
 
 plotOutcomeProportion <- function(d, value, others, ylab=NULL) {
   if(is.null(ylab)) ylab <- paste(value, "proportion")
   d %>% 
     findOutcomeProportion(value, others) %>% 
-  ggplot(aes(x=Midage, y=p, group=Diagnostic, colour = Diagnostic)) +
+  ggplot(aes(x=Age, y=p, group=Diagnostic, colour = Diagnostic)) +
     theme_linedraw() +
-    theme(panel.grid = element_blank()) +
-    geom_errorbar(aes(x=Midage, ymin=p_lo, ymax=p_up, colour=Diagnostic), width=1) +
+    theme(panel.grid = element_blank(), axis.text.x=element_text(angle=45, hjust=1)) +
+    geom_errorbar(aes(x=Age, ymin=p_lo, ymax=p_up, colour=Diagnostic), width=0.3) +
     geom_point(size=2) +
-    labs(x = "Age", y = ylab) +
-    geom_smooth(method="lm", formula=y ~ poly(x, 2), se=FALSE) +
+    labs(x = "Age group", y = "Proportion", title=ylab) +
+    #geom_smooth(method="lm", formula=y ~ poly(x, 2), se=FALSE) +
     scale_colour_manual(values = cbPalette)
 }
 ```
 
-```{r age_death_bc_proportion, fig.width=6, fig.height=3}
-plotOutcomeProportion(sdat, value = "direct_bc_death", others = c("indirect_bc_death", "unrelated_death", "unrelated_bc_death"), ylab = "Direct BC deaths / all deaths")   
-
-plotOutcomeProportion(sdat, value = "unrelated_death", others = c("indirect_bc_death", "direct_bc_death", "unrelated_bc_death"), ylab = "Unrelated deaths / all deaths")
-
-plotOutcomeProportion(sdat, value = "direct_bc_death", others = c("indirect_bc_death", "unrelated_death", "unrelated_bc_death", "survival"), ylab = "Direct BC deaths / all outcomes")  
-
-plotOutcomeProportion(sdat, value = "unrelated_death", others = c("indirect_bc_death", "direct_bc_death", "unrelated_bc_death", "survival"), ylab = "Unrelated deaths / all outcomes")
-
+```{r cases}
+cases <- list(
+  `1` = list(value = "direct_bc_death",
+             others = c("indirect_bc_death", "unrelated_death", "unrelated_bc_death"),
+             name = "Direct BC deaths / all deaths"),
+  `2` = list(value = "unrelated_death",
+             others = c("indirect_bc_death", "direct_bc_death", "unrelated_bc_death"),
+             name = "Unrelated deaths / all deaths"),
+  `3` = list(value = "direct_bc_death",
+             others = c("indirect_bc_death", "unrelated_death", "unrelated_bc_death", "survival"),
+             name = "Direct BC deaths / all outcomes"),
+  `4` = list(value = "unrelated_death",
+             others = c("indirect_bc_death", "direct_bc_death", "unrelated_bc_death", "survival"),
+             name = "Unrelated deaths / all outcomes")
+)
 ```
+
+```{r age_death_bc_proportion, fig.width=6, fig.height=10}
+map(cases, function(case) {
+  plotOutcomeProportion(sdat, value = case$value, others = case$others, ylab = case$name)   
+}) %>% 
+  plot_grid(plotlist = ., ncol=1)
+```
+
+We see that screened patients consistently show lower breast cancer death proportion at most age groups. The unrelated deaths / all deaths are higher for screened patients, because these are essentially the inversion of the BC deaths (that is, unrelated deaths and BC deaths add up to total deaths, apart from two other categories - indirect BC death and unrelated BC death).
+
+When we find the proportion of all outcomes, the result is much more independent. The BC deaths are much higher in symptomatic patients but unrelated deaths show very little difference between screened and symptomatic patients - this is encouraging!
+
+## Statistical significance
+
+Next we assess the statistical different between symptoms and screening for each plot. For this, we use a test statistic:
+
+\[\chi^2 = \sum_{i=1}^m \frac{(p_{1,i} - p_{2,i})^2}{SE_i^2},\]
+
+which is approximately $\chi^2$ distributed with $m-1$ degrees of freedom, where $m$ is the number of age groups used (we ignore groups where any of the counts are zero). Here $i$ is the age group index, $p_1$ and $p_2$ are proportions of deaths in symptoms and screening diagnostics, respectively and the pooled standard error, $SE_i$ is approximated by
+
+\[SE_i^2 = SE_{1,i}^2 + SE_{2,i}^2,\]
+
+that is from individual standard errors of each proportion. This is a conservative approximation as it is not weighted by the sample size and it will tend to overestimate errors when one of the standard errors is much larger than the other. As a result, $\chi^2$ is reduced and the $p$-value is inflated.
+
+
+```{r chi2_comparison}
+chi2Comparison <- function(d, value, others) {
+  P <- d %>% 
+    findOutcomeProportion(value, others) %>% 
+    select(Age, Diagnostic, p, se) %>% 
+    group_split(Diagnostic)
+  cx <- inner_join(P[[1]], P[[2]], by="Age") %>% 
+    mutate(se2 = se.x^2 + se.y^2, chi2 = (p.x - p.y)^2 / se2)
+  chi2 <- sum(cx$chi2)
+  dof <- nrow(cx) - 1
+  p <- 1 - pchisq(chi2, dof)
+  list(chi2 = chi2, dof = dof, p = p)
+}
+```
+
+
+```{r chi2_table}
+map_df(cases, function(case) {
+  cs <- chi2Comparison(sdat, value = case$value, others = case$others)
+  tibble(Group = case$name, chi2 = cs$chi2, p = cs$p)
+}) %>% 
+  mutate_at(vars(chi2, p), ~signif(.,3)) %>% mutate_at(vars(chi2, p), as.character) %>% 
+  myKable()
+```
+
+As we mostly see very small p-values (practically zero) the p-value inflation is not a problem. We see that the first free cases are very strongly statistically significant while in the last case, which is still statistically significant at the default 0.05 limit, the effect size (can be quantified by $\chi^2$) is much smaller.
+
+# Conclusion
+
+Direct BC death proportions are much smaller in screened patients than in the symptomatic patients. The effect cannot be attributed to general differences between the two groups, e.g. because of a healthier life style. When we look at unrelated deaths, the difference between the two groups are much smaller.
+
+
+
