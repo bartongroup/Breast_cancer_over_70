@@ -32,7 +32,7 @@ N <- function(n) prettyNum(n, big.mark = ",")
 dat <- read_tsv("surv.txt", col_types = cols()) %>% 
   rename(Diagnostic = "Diagnostic route") %>% 
   mutate(Outcome = tolower(Outcome)) %>% 
-  filter(Diagnostic != "other" & Age != "16-20") %>% 
+  filter(Diagnostic != "other" & Age != "16-20" & Age != "21-25") %>% 
   mutate(Diagnostic = recode(Diagnostic, "sympto" = "symptoms", "screen" = "screening")) %>% 
   mutate_at(vars(Outcome, Diagnostic, Age), as_factor)
 
@@ -46,7 +46,7 @@ sdat <- dat %>% group_by(Outcome, Diagnostic, Age) %>%
   select(-start, -end)
 ```
 
-We filter input data by removing Outcome = "other" and age range 16-20. After this filtering we have `r N(nrow(dat))` patients.
+We filter input data by removing Outcome = "other" and age ranges 16-20 and 21-25, as they have very few breast cancer deaths. After this filtering we have `r N(nrow(dat))` patients.
 
 We generally group data by Age, Diagnostic and Outcome. Then, we combine various subgroups. Here are the full data group counts:
 
@@ -58,6 +58,7 @@ sdat %>% select(Age, Diagnostic, Outcome, n) %>%
 
 
 # A few plots
+
 
 
 ```{r plot_fun}
@@ -76,10 +77,14 @@ ggplot(aes_string(x=what, y="p")) +
 }
 ```
 
+## Basic grouping
+
 ```{r plot1, fig.width=10, fig.height=6}
 sdat %>% 
   plotData
 ```
+
+## Other deaths together
 
 ```{r plot2, fig.width=10, fig.height=6}
 sdat %>% 
@@ -89,6 +94,8 @@ sdat %>%
                           "unrelated_death" = "other death")) %>% 
   plotData
 ```
+
+## Survival excluded
 
 ```{r plot3, fig.width=10, fig.height=6}
 sdat %>% 
@@ -110,6 +117,8 @@ sdat %>%
   plotData
 ```
 
+## All other outcomes together (survival included)
+
 ```{r plot5, fig.width=10, fig.height=6}
 sdat %>% 
   mutate(Outcome = recode(Outcome,
@@ -120,6 +129,7 @@ sdat %>%
   plotData
 ```
 
+## Diagnostic distribution
 
 ```{r plot6, fig.width=10, fig.height=6}
 sdat %>% 
@@ -171,6 +181,7 @@ plotDeath <- function(d) {
 }
 ```
 
+## Direct BC death vs diagnostic
 
 ```{r plot_death_1, fig.width=10, fig.height=6}
 sdat %>% 
@@ -214,13 +225,15 @@ findOutcomeProportion <- function(d, value, others) {
 
 plotOutcomeProportion <- function(d, value, others, ylab=NULL) {
   if(is.null(ylab)) ylab <- paste(value, "proportion")
+  pd <- position_dodge(width=0.35)
   d %>% 
     findOutcomeProportion(value, others) %>% 
   ggplot(aes(x=Age, y=p, group=Diagnostic, colour = Diagnostic)) +
     theme_linedraw() +
     theme(panel.grid = element_blank(), axis.text.x=element_text(angle=45, hjust=1)) +
-    geom_errorbar(aes(x=Age, ymin=p_lo, ymax=p_up, colour=Diagnostic), width=0.3) +
-    geom_point(size=2) +
+    geom_errorbar(aes(x=Age, ymin=p_lo, ymax=p_up, colour=Diagnostic), width=0.3, position=pd) +
+    geom_point(size=2, position=pd) +
+    geom_vline(xintercept = seq(0.5,20,1), colour="grey90") +
     labs(x = "Age group", y = "Proportion", title=ylab) +
     #geom_smooth(method="lm", formula=y ~ poly(x, 2), se=FALSE) +
     scale_colour_manual(values = cbPalette)
