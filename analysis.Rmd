@@ -320,7 +320,7 @@ I replace are range with the middle of the range and fit numerical data with a t
 
 
 ```{r fit_funs}
-fitData <- function(d, value, others) {
+fitPoly <- function(d, value, others, ...) {
   d %>% 
     findOutcomeProportion(value, others) %>% 
     select(x=Midage, y=p, se, Diagnostic) %>% 
@@ -332,22 +332,26 @@ fitData <- function(d, value, others) {
     })
 }
 
-plotFitData <- function(d, value, others, tit=NULL) {
+plotFitData <- function(d, value, others, FITFUN=fitPoly, ..., tit=NULL) {
   if(is.null(tit)) tit <- paste(value, "proportion")
   
   dat <- d %>% 
     findOutcomeProportion(value, others)
-  mod <- fitData(d, value, others)
   
-  ggplot(data=dat, aes(x=Midage, y=p, group=Diagnostic, colour = Diagnostic)) +
+  g <- ggplot(data=dat, aes(x=Midage, y=p, group=Diagnostic, colour = Diagnostic)) +
     theme_linedraw() +
     theme(panel.grid = element_blank()) +
     geom_errorbar(aes(x=Midage, ymin=p_lo, ymax=p_up, colour=Diagnostic), width=0.2) +
     geom_point(size=1.5) +
     labs(x = "Age group", y = "Proportion", title=tit) +
     scale_colour_manual(values = cbPalette) +
-    scale_y_continuous(limits=c(0,1)) +
-    geom_line(data=mod, aes(x=x, y=y, colour=Diagnostic))
+    scale_y_continuous(limits=c(0,1))
+
+  if(!is.null(FITFUN)) {
+    mod <- FITFUN(d, value, others, ...)
+    g <- g +   geom_line(data=mod, aes(x=x, y=y, colour=Diagnostic))
+  }
+  g
 }
 ```
 
@@ -355,6 +359,58 @@ plotFitData <- function(d, value, others, tit=NULL) {
 ```{r age_model, fig.width=6, fig.height=12}
 map(cases, function(case) {
   plotFitData(sdat, value = case$value, others = case$others, tit = case$name)   
-}) %>% 
+}) %>%  
   plot_grid(plotlist = ., ncol=1) 
 ```
+
+
+# Time course
+
+Here we look how proportion of direct breast cancer deaths (vs all deaths) changes as a function of age. I do the calculation twice: once for symptomatic patiens only, and then for all patients. Screened patiens don't show a simple linear decrease.
+
+From figures above we notice that the proportion of BC deaths decreases with age only above the age of about 35. Hence, we fit only ages 35+ with a linear regression.
+
+Plots show the best fit, tables show regression parameters.
+
+```{r time_course_fit}
+timeCourseFit <- function(d, value, others, min.age=35) {
+ dx <- d %>%  
+    findOutcomeProportion(value, others) %>% 
+    select(x=Midage, y=p, se)
+ m <- nls(y ~ Intercept + Slope*x, start=list(Intercept=1, Slope=-0.1), weights=1/se^2, data=dx)
+ summary(m)$coefficients %>%
+   as.data.frame %>%
+   rownames_to_column(var="Parameter")
+}
+
+timeCourse <- function(d, value, others, min.age=35, tit=NULL) {
+  coef <- timeCourseFit(d, value, others, min.age=35)
+  xx <- c(min.age, 87.5)
+  mod <- tibble(x = xx, y = coef$Estimate[1] + xx * coef$Estimate[2])
+  g <- plotFitData(d, value, others, FITFUN=NULL, tit=tit) +
+    geom_line(data=mod, aes(x=x, y=y, group=1), colour="black")
+  list(plot=g, coef=coef)
+}
+```
+
+```{r time_course_symptoms, fig.width=6, fig.height=3}
+d_sym <- sdat %>%
+  filter(Diagnostic=="symptoms")
+tc_sym <- timeCourse(d_sym, cases[[1]]$value, cases[[1]]$others, tit=cases[[1]]$name)
+tc_sym$plot
+tc_sym$coef %>% mutate_at(vars(-Parameter), ~sprintf("%.3g", .)) %>% myKable
+```
+
+```{r time_course_both, fig.width=6, fig.height=3}
+d_both <- sdat %>% 
+  group_by(Age, Outcome) %>% 
+  summarise(n = sum(n), Midage = Midage[1]) %>% 
+  mutate(Diagnostic = "both")
+tc_both <- timeCourse(d_both, cases[[1]]$value, cases[[1]]$others, tit=cases[[1]]$name)
+tc_both$plot
+tc_both$coef %>% mutate_at(vars(-Parameter), ~sprintf("%.3g", .)) %>% myKable
+```
+
+In both cases the decrease in direct BC deaths proportion is about $0.012\pm0.001$, that is $(1.2\pm0.1)\%$ per year. Also, a small p-value on the slope indicates that the decrease with age is highly significant.
+
+
