@@ -364,9 +364,9 @@ map(cases, function(case) {
 ```
 
 
-# Time course
+# Age dependence of BC deaths
 
-Here we look how proportion of direct breast cancer deaths (vs all deaths) changes as a function of age. I do the calculation twice: once for symptomatic patiens only, and then for all patients. Screened patiens don't show a simple linear decrease.
+Here we look how proportion of direct breast cancer deaths (vs all deaths) changes as a function of age. I do the calculation twice: once for symptomatic patients only, and then for all patients. Screened patients don't show a simple linear decrease.
 
 From figures above we notice that the proportion of BC deaths decreases with age only above the age of about 35. Hence, we fit only ages 35+ with a linear regression.
 
