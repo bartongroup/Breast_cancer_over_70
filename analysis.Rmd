@@ -215,22 +215,24 @@ findOutcomeProportion <- function(d, value, others) {
     mutate(row = row_number()) %>% 
     group_by(row) %>%
     do({
-      #ci <- prop.test(.$s, .$n)$conf.int
-      #tibble(p_lo = ci[1], p_up = ci[2])
+      ci <- prop.test(.$s, .$n)$conf.int
       se <- sqrt(.$p * (1 - .$p) / .$n)
-      tibble(p_lo = .$p - se, p_up = .$p + se, se = se)
+      tibble(p_lo = ci[1], p_up = ci[2], se = se)
     }) %>% 
     ungroup
   
   bind_cols(ds, select(properr, p_lo, p_up, se))
 }
 
-plotOutcomeProportion <- function(d, value, others, tit=NULL) {
+plotOutcomeProportion <- function(d, value, others, tit=NULL, err="se") {
   if(is.null(tit)) tit <- paste(value, "proportion")
   pd <- position_dodge(width=0.35)
-  d %>% 
-    findOutcomeProportion(value, others) %>% 
-  ggplot(aes(x=Age, y=p, group=Diagnostic, colour = Diagnostic)) +
+  d <- d %>% 
+    findOutcomeProportion(value, others)
+  if(err == "se") {
+    d <- d %>% mutate(p_lo = p - se, p_up = p + se)
+  }
+  ggplot(d, aes(x=Age, y=p, group=Diagnostic, colour = Diagnostic)) +
     theme_linedraw() +
     theme(panel.grid = element_blank(), axis.text.x=element_text(angle=45, hjust=1)) +
     geom_errorbar(aes(x=Age, ymin=p_lo, ymax=p_up, colour=Diagnostic), width=0.35, position=pd) +
@@ -397,8 +399,13 @@ d71 <- groupAge(filter(sdat, Midage > 71))
 ```
 
 ```{r over_71_plot2, fig.width=4, fig.height=3}
-plotGroupAge <- function(d, what="count", pos="dodge") {
-  d <- d %>% mutate(y = if(what == "count") n else p)
+plotGroupAge <- function(d, what="count", pos="dodge", x="Diagnostic", group="Outcome") {
+  d <- d %>%
+    mutate(
+      x = d[[x]],
+      group = d[[group]],
+      y = if(what == "count") n else p
+    )
 
   if(pos == "stack") {
     max.y <- 1.05
@@ -408,7 +415,7 @@ plotGroupAge <- function(d, what="count", pos="dodge") {
     max.y <- max(d$p_up) * 1.03
   }
   
-  g <- ggplot(d, aes(x=Diagnostic, y=y, group=Outcome, fill=Outcome)) +
+  g <- ggplot(d, aes(x=x, y=y, group=group, fill=group)) +
     geom_col(position = pos, width=0.6, colour="grey30") +
     theme_linedraw() +
     theme(panel.grid.major.x = element_blank()) +
@@ -430,23 +437,43 @@ ftab <- select(dfi, n, not_n) %>% as.matrix
 ft <- fisher.test(ftab, alternative="greater")
 ```
 
-The unrelated death proportion is greater in the symptomatic patients. The difference is statistically significant, $p = `r signif(ft$p.value, 2)`$.
+The unrelated death proportion is greater in the symptomatic patients. The difference is statistically significant, $p = `r signif(ft$p.value, 2)`$. The odds ratio (the effect size when comparing proportions) is `r signif(ft$estimate, 2)`.
 
-Below I repeat the above calculations for each age group (above 71) separately. As we can see, the difference in unrelated deaths is less convincing per group (overlapping error bars), only becomes pronounced when they are pooled. Also, the last figure in the "Alternative visualization" section (above) shows very little difference between the two diagnostics, when all ages trend is taken into account.
+Below I repeat the above calculations for each age group (above 71) separately. As we can see, the difference in unrelated deaths is less convincing per group (overlapping error bars), only becomes pronounced when they are pooled. Also, the number of screened patients become very small at later ages.
 
 ```{r age_comparison, fig.width=10, fig.height=3}
-ages <- c("71-75", "76-80", "81-85", "86+")
-map(ages, function(age) {
-  sdat %>% 
-    filter(Age == age) %>% 
-    groupAge %>% 
-    plotGroupAge(what="proportion") +
-      ggtitle(age) +
-      theme(legend.position = "none")
-}) %>% 
-  plot_grid(plotlist=., nrow=1)
+plotAgeComparison <- function(d, ages=c("71-75", "76-80", "81-85", "86+"), what="propotion") {
+  map(ages, function(age) {
+    d %>% 
+      filter(Age == age) %>% 
+      groupAge %>% 
+      plotGroupAge(what=what) +
+        ggtitle(age) +
+        theme(legend.position = "none")
+  }) %>% 
+    plot_grid(plotlist=., nrow=1)
+}
+
+plotAgeComparison(sdat, what="count")
+plotAgeComparison(sdat, what="proportion")
 ```
 
+Below I repeat the figure showing outcome proportion for all age groups. Instead of standard error I plot 95% confidence intervals and change the vertical axis range to zoom into the data. It shows very little difference between the two diagnostics, when all ages trend is taken into account.
+
+```{r plot_again}
+plotOutcomeProportion(sdat, value = cases[[4]]$value, others = cases[[4]]$others, tit = cases[[4]]$name, err="ci") +
+  coord_cartesian(ylim=c(0,0.46))
+```
+
+Incidentally, there is a bigger difference in the 56-60 age group than in 66-70, while there is not enough screening data from the 61-65 group.
+
+My feeling is that though there is a statistically significant difference in unrelated deaths between the two diagnostics, it only becomes apparent when data are pooled over four age groups. When looking at individual groups and a whole-age trend, this is less convincing. The symptomatic data have enough counts and the trend is clear with small error bars. The screened patient data are simply too small - it is very noisy and the age trend is not clear.
+
+Alternative plot.
+
+```{r alternative_71, fig.width=5, fig.height=4}
+plotGroupAge(d71, what="proportion", x="Outcome", group="Diagnostic") + theme(axis.text.x = element_text(angle=45, hjust=1))
+```
 
 
 # Age dependence of BC deaths
