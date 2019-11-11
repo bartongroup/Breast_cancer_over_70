@@ -442,7 +442,7 @@ The unrelated death proportion is greater in the symptomatic patients. The diffe
 Below I repeat the above calculations for each age group (above 71) separately. As we can see, the difference in unrelated deaths is less convincing per group (overlapping error bars), only becomes pronounced when they are pooled. Also, the number of screened patients become very small at later ages.
 
 ```{r age_comparison, fig.width=10, fig.height=3}
-plotAgeComparison <- function(d, ages=c("71-75", "76-80", "81-85", "86+"), what="propotion") {
+plotAgeComparison <- function(d, ages=c("71-75", "76-80", "81-85", "86+"), what="proportion") {
   map(ages, function(age) {
     d %>% 
       filter(Age == age) %>% 
