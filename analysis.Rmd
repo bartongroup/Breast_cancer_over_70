@@ -191,69 +191,6 @@ sdat %>%
 ```
 
 
-## Over 71
-
-Below I re-create fig. 3 from the manuscript, that is the outcome for patients over 71. I create three versions of this figure, showing total counts, proportion and stacked proportion. The total count figure shows that the two groups of patients are unbalanced. We should consider if this can affect the outcome proportions.
-
-Note that the proportion plot includes error bars (95% confidence intervals), which we should show in the paper. These are errors of a proportion. It is almost impossible to plot error bars in a stacked plot.
-
-```{r over71_data}
-d71 <- sdat %>% 
-  filter(Midage > 71) %>% 
-  mutate(Outcome = recode(Outcome, "unrelated_bc_death" = "unrelated_death"), Age = "71+") %>% 
-  group_by(Diagnostic, Outcome) %>% 
-  summarise(n = sum(n)) %>% 
-  ungroup %>% 
-  group_by(Diagnostic) %>% 
-  mutate(p = n / sum(n), tot = sum(n)) %>%
-  ungroup
-
-err <- map_df(1:nrow(d71), function(i) {
-  r <- d71[i, ]
-  conf <- prop.test(r$n, r$tot, conf.level=0.95)$conf.int
-  tibble(p_lo = conf[1], p_up = conf[2])
-})
-
-d71 <- bind_cols(d71, err)
-```
-
-```{r over_71_plot2, fig.width=4, fig.height=3}
-plot71 <- function(d, what="count", pos="dodge") {
-  if(what == "count") {
-    d$y = d$n
-  } else {
-    d$y = d$p
-  }
-  if(pos == "stack") {
-    max.y <- 1.05
-  } else {
-    max.y <- max(d$y) * 1.06
-  }
-  
-  g <- ggplot(d, aes(x=Diagnostic, y=y, group=Outcome, fill=Outcome)) +
-    geom_col(position = pos, width=0.6, colour="grey30") +
-    theme_linedraw() +
-    theme(panel.grid.major.x = element_blank()) +
-    scale_fill_manual(values=cbPalette) +
-    scale_y_continuous(expand=c(0,0), limits=c(0, max.y)) +
-    labs(x=NULL, y=what)
-  if(pos == "dodge" & what == "proportion") {
-    g <- g + geom_errorbar(aes(ymin=p_lo, ymax=p_up), position=position_dodge(width=0.6), width=0.2, colour="grey30")
-  }
-  g
-}
-
-plot71(d71, what="count")
-plot71(d71, what="proportion")
-plot71(d71, what="proportion", pos="stack")
-
-dfi <- d71 %>% mutate(not_n = tot - n) %>% filter(Outcome == "unrelated_death")
-ftab <- select(dfi, n, not_n) %>% as.matrix
-ft <- fisher.test(ftab, alternative="greater")
-```
-
-The unrelated death proportion is greater in the symptomatic patiens. The difference is statistically significant, $p = `r signif(ft$p.value, 2)`$.
-
 # Proportion analysis
 
 Here, we group data by age and diagnostic route. In each age group we find a proportion of either direct BC deaths or unrelated deaths with respect to all types of deaths or all possible outcomes.
@@ -428,6 +365,91 @@ map(cases, function(case) {
 }) %>%  
   plot_grid(plotlist = ., ncol=1) 
 ```
+
+
+# Over 71
+
+Below I re-create fig. 3 from the manuscript, that is the outcome for patients over 71. I create three versions of this figure, showing total counts, proportion and stacked proportion. The total count figure shows that the two groups of patients are unbalanced. We should consider if this can affect the outcome proportions.
+
+Note that the proportion plot includes error bars (95% confidence intervals), which we should show in the paper. These are errors of a proportion. It is almost impossible to plot error bars in a stacked plot.
+
+```{r over71_data}
+groupAge <- function(d) {
+  d <- d %>% 
+    mutate(Outcome = recode(Outcome, "unrelated_bc_death" = "unrelated_death")) %>% 
+    group_by(Diagnostic, Outcome) %>% 
+    summarise(n = sum(n)) %>% 
+    ungroup %>% 
+    group_by(Diagnostic) %>% 
+    mutate(p = n / sum(n), tot = sum(n)) %>%
+    ungroup
+
+  err <- map_df(1:nrow(d), function(i) {
+    r <- d[i, ]
+    conf <- prop.test(r$n, r$tot, conf.level=0.95)$conf.int
+    tibble(p_lo = conf[1], p_up = conf[2])
+  })
+
+  bind_cols(d, err)
+}
+
+d71 <- groupAge(filter(sdat, Midage > 71))
+```
+
+```{r over_71_plot2, fig.width=4, fig.height=3}
+plotGroupAge <- function(d, what="count", pos="dodge") {
+  if(what == "count") {
+    d$y = d$n
+  } else {
+    d$y = d$p
+  }
+  if(pos == "stack") {
+    max.y <- 1.05
+  } else if(what == "count") {
+    max.y <- max(d$y) * 1.03
+  } else {
+    max.y <- max(d$p_up) * 1.03
+  }
+  
+  g <- ggplot(d, aes(x=Diagnostic, y=y, group=Outcome, fill=Outcome)) +
+    geom_col(position = pos, width=0.6, colour="grey30") +
+    theme_linedraw() +
+    theme(panel.grid.major.x = element_blank()) +
+    scale_fill_manual(values=cbPalette) +
+    scale_y_continuous(expand=c(0,0), limits=c(0, max.y)) +
+    labs(x=NULL, y=what)
+  if(pos == "dodge" & what == "proportion") {
+    g <- g + geom_errorbar(aes(ymin=p_lo, ymax=p_up), position=position_dodge(width=0.6), width=0.2, colour="grey30")
+  }
+  g
+}
+
+plotGroupAge(d71, what="count")
+plotGroupAge(d71, what="proportion")
+plotGroupAge(d71, what="proportion", pos="stack")
+
+dfi <- d71 %>% mutate(not_n = tot - n) %>% filter(Outcome == "unrelated_death")
+ftab <- select(dfi, n, not_n) %>% as.matrix
+ft <- fisher.test(ftab, alternative="greater")
+```
+
+The unrelated death proportion is greater in the symptomatic patients. The difference is statistically significant, $p = `r signif(ft$p.value, 2)`$.
+
+Below I repeat the above calculations for each age group (above 71) separately. As we can see, the difference in unrelated deaths is less convincing per group (overlapping error bars), only becomes pronounced when they are pooled. Also, the last figure in the "Alternative visualization" section (above) shows very little difference between the two diagnostics, when all ages trend is taken into account.
+
+```{r age_comparison, fig.width=10, fig.height=3}
+ages <- c("71-75", "76-80", "81-85", "86+")
+map(ages, function(age) {
+  sdat %>% 
+    filter(Age == age) %>% 
+    groupAge %>% 
+    plotGroupAge(what="proportion") +
+      ggtitle(age) +
+      theme(legend.position = "none")
+}) %>% 
+  plot_grid(plotlist=., nrow=1)
+```
+
 
 
 # Age dependence of BC deaths
