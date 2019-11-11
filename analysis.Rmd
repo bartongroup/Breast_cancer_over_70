@@ -191,6 +191,69 @@ sdat %>%
 ```
 
 
+## Over 71
+
+Below I re-create fig. 3 from the manuscript, that is the outcome for patients over 71. I create three versions of this figure, showing total counts, proportion and stacked proportion. The total count figure shows that the two groups of patients are unbalanced. We should consider if this can affect the outcome proportions.
+
+Note that the proportion plot includes error bars (95% confidence intervals), which we should show in the paper. These are errors of a proportion. It is almost impossible to plot error bars in a stacked plot.
+
+```{r over71_data}
+d71 <- sdat %>% 
+  filter(Midage > 71) %>% 
+  mutate(Outcome = recode(Outcome, "unrelated_bc_death" = "unrelated_death"), Age = "71+") %>% 
+  group_by(Diagnostic, Outcome) %>% 
+  summarise(n = sum(n)) %>% 
+  ungroup %>% 
+  group_by(Diagnostic) %>% 
+  mutate(p = n / sum(n), tot = sum(n)) %>%
+  ungroup
+
+err <- map_df(1:nrow(d71), function(i) {
+  r <- d71[i, ]
+  conf <- prop.test(r$n, r$tot, conf.level=0.95)$conf.int
+  tibble(p_lo = conf[1], p_up = conf[2])
+})
+
+d71 <- bind_cols(d71, err)
+```
+
+```{r over_71_plot2, fig.width=4, fig.height=3}
+plot71 <- function(d, what="count", pos="dodge") {
+  if(what == "count") {
+    d$y = d$n
+  } else {
+    d$y = d$p
+  }
+  if(pos == "stack") {
+    max.y <- 1.05
+  } else {
+    max.y <- max(d$y) * 1.06
+  }
+  
+  g <- ggplot(d, aes(x=Diagnostic, y=y, group=Outcome, fill=Outcome)) +
+    geom_col(position = pos, width=0.6, colour="grey30") +
+    theme_linedraw() +
+    theme(panel.grid.major.x = element_blank()) +
+    scale_fill_manual(values=cbPalette) +
+    scale_y_continuous(expand=c(0,0), limits=c(0, max.y)) +
+    labs(x=NULL, y=what)
+  if(pos == "dodge" & what == "proportion") {
+    g <- g + geom_errorbar(aes(ymin=p_lo, ymax=p_up), position=position_dodge(width=0.6), width=0.2, colour="grey30")
+  }
+  g
+}
+
+plot71(d71, what="count")
+plot71(d71, what="proportion")
+plot71(d71, what="proportion", pos="stack")
+
+dfi <- d71 %>% mutate(not_n = tot - n) %>% filter(Outcome == "unrelated_death")
+ftab <- select(dfi, n, not_n) %>% as.matrix
+ft <- fisher.test(ftab, alternative="greater")
+```
+
+The unrelated death proportion is greater in the symptomatic patiens. The difference is statistically significant, $p = `r signif(ft$p.value, 2)`$.
+
 # Proportion analysis
 
 Here, we group data by age and diagnostic route. In each age group we find a proportion of either direct BC deaths or unrelated deaths with respect to all types of deaths or all possible outcomes.
@@ -332,7 +395,7 @@ fitPoly <- function(d, value, others, ...) {
     })
 }
 
-plotFitData <- function(d, value, others, FITFUN=fitPoly, ..., tit=NULL) {
+plotFitData <- function(d, value, others, FITFUN=fitPoly, ..., tit=NULL, with.smooth=FALSE, min.age=35, max.y=1, level=0.95) {
   if(is.null(tit)) tit <- paste(value, "proportion")
   
   dat <- d %>% 
@@ -345,11 +408,14 @@ plotFitData <- function(d, value, others, FITFUN=fitPoly, ..., tit=NULL) {
     geom_point(size=1.5) +
     labs(x = "Age group", y = "Proportion", title=tit) +
     scale_colour_manual(values = cbPalette) +
-    scale_y_continuous(limits=c(0,1))
+    scale_y_continuous(limits=c(0,max.y))
 
   if(!is.null(FITFUN)) {
     mod <- FITFUN(d, value, others, ...)
     g <- g +   geom_line(data=mod, aes(x=x, y=y, colour=Diagnostic))
+  }
+  if(with.smooth) {
+    g <- g + geom_smooth(data=filter(dat, Midage>min.age), method="lm", colour="black", size=0.5, level=level)
   }
   g
 }
@@ -383,23 +449,44 @@ timeCourseFit <- function(d, value, others, min.age=35) {
    rownames_to_column(var="Parameter")
 }
 
-timeCourse <- function(d, value, others, min.age=35, tit=NULL) {
+timeCourse <- function(d, value, others, min.age=35, tit=NULL, with.half=FALSE) {
+  # fit time course with a linear function, using nls to include errors
   coef <- timeCourseFit(d, value, others, min.age=35)
+  b0 <- coef$Estimate[1]
+  b1 <- coef$Estimate[2]
+
+  # find half time and its error, using inverse linear fit
+  dx <- d %>%  
+    findOutcomeProportion(value, others) %>% 
+    select(x=Midage, y=p, se)
+  f12 <- lm(x ~ y, data=dx)
+  p12 <- predict(f12, tibble(y=0.5), se.fit = TRUE, level=0.95)
+  
+  halfx <- p12$fit
+  halfx.err <- p12$se.fit
+  
   xx <- c(min.age, 87.5)
-  mod <- tibble(x = xx, y = coef$Estimate[1] + xx * coef$Estimate[2])
+  mod <- tibble(x = xx, y = b0 + xx * b1)
   g <- plotFitData(d, value, others, FITFUN=NULL, tit=tit) +
-    geom_line(data=mod, aes(x=x, y=y, group=1), colour="black")
-  list(plot=g, coef=coef)
+    geom_line(data=mod, aes(x=x, y=y), group=1, colour=1)
+  if(with.half) {
+    g <- g + 
+      #geom_tile(x=halfx, width=halfx.err, y=0.5, height=0.5, fill="grey80") +
+      geom_vline(xintercept = halfx, linetype = "dotted", colour="grey50")
+  }
+  list(plot=g, coef=coef, half=halfx, half.err=halfx.err)
 }
 ```
 
 ```{r time_course_symptoms, fig.width=6, fig.height=3}
 d_sym <- sdat %>%
   filter(Diagnostic=="symptoms")
-tc_sym <- timeCourse(d_sym, cases[[1]]$value, cases[[1]]$others, tit=cases[[1]]$name)
+tc_sym <- timeCourse(d_sym, cases[[1]]$value, cases[[1]]$others, tit=cases[[1]]$name, with.half = TRUE)
 tc_sym$plot
 tc_sym$coef %>% mutate_at(vars(-Parameter), ~sprintf("%.3g", .)) %>% myKable
 ```
+
+The vertical line corresponds to the model = 0.5 and the age for this is `r round(tc_sym$half, 0)`  $\pm$ `r round(tc_sym$half.err, 0)` years (95% confidence interval).
 
 ```{r time_course_both, fig.width=6, fig.height=3}
 d_both <- sdat %>% 
@@ -407,7 +494,7 @@ d_both <- sdat %>%
   summarise(n = sum(n), Midage = Midage[1]) %>% 
   mutate(Diagnostic = "both")
 tc_both <- timeCourse(d_both, cases[[1]]$value, cases[[1]]$others, tit=cases[[1]]$name)
-tc_both$plot
+tc_both$plot 
 tc_both$coef %>% mutate_at(vars(-Parameter), ~sprintf("%.3g", .)) %>% myKable
 ```
 
