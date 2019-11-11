@@ -398,11 +398,8 @@ d71 <- groupAge(filter(sdat, Midage > 71))
 
 ```{r over_71_plot2, fig.width=4, fig.height=3}
 plotGroupAge <- function(d, what="count", pos="dodge") {
-  if(what == "count") {
-    d$y = d$n
-  } else {
-    d$y = d$p
-  }
+  d <- d %>% mutate(y = if(what == "count") n else p)
+
   if(pos == "stack") {
     max.y <- 1.05
   } else if(what == "count") {
