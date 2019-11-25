@@ -435,7 +435,7 @@ plotGroupAge <- function(d, what="count", pos="dodge", x="Diagnostic", group="Ou
   
   g <- ggplot(d, aes(x=x, y=y, group=group, fill=group)) +
     geom_col(position = pos, width=0.6, colour="grey30") +
-    theme_linedraw() +
+    theme_bw() +
     theme(
       panel.grid.major.x = element_blank(),
       panel.grid.minor.x = element_blank(),
@@ -578,6 +578,42 @@ In both cases the decrease in direct BC deaths proportion is about $0.012\pm0.00
 
 # Publication figures
 
+```{r mortality, fig.width=5, fig.height=3}
+ds <- sdat %>% 
+  group_by(Age) %>% 
+  summarise(s = sum(n[Outcome != "survival"]), n = sum(n), p = s / n)
+
+properr <- ds %>%
+    mutate(row = row_number()) %>% 
+    group_by(row) %>%
+    do({
+      ci <- suppressWarnings(prop.test(.$s, .$n)$conf.int)
+      se <- sqrt(.$p * (1 - .$p) / .$n)
+      tibble(p_lo = ci[1], p_up = ci[2], se = se)
+    }) %>% 
+    ungroup
+ds <- bind_cols(ds, select(properr, p_lo, p_up, se))
+
+g <- ggplot(ds, aes(x=Age, y=p)) +
+  theme_bw() +
+  theme(
+    panel.grid.minor.y = element_blank(),
+    axis.text.x = element_text(angle=40, hjust=1)
+  ) +
+  geom_errorbar(aes(ymin=p_lo, ymax=p_up), width=0.1) +
+  geom_point() +
+  labs(x="Age group", y="Mortality")
+g
+
+file <- "mortality.pdf"
+link_mortality <- paste0(pdf_url, file)
+ggsave(file.path(pdf_dir, file), plot = g, device = "pdf", width=4, height=3)
+```
+
+[Download](`r link_mortality`)
+
+
+
 ```{r fig_assessment, fig.width=5, fig.height=3}
 ass71 <- tribble(
   ~assessment, ~n,
@@ -591,7 +627,7 @@ ass71 <- tribble(
   mutate(assessment = as_factor(assessment))
 
 g <- ggplot(ass71, aes(x=assessment, y=n)) +
-  theme_linedraw() +
+  theme_bw() +
   theme(
     panel.grid.major.y = element_blank(),
     panel.grid.minor.x = element_blank()
@@ -628,7 +664,7 @@ plotDeathProp <- function(d, min.age=37.5) {
   mod <- tibble(x = xx, y = 0.5 - slope*half + xx * slope)
 
   ggplot(data=dat, aes(x=Midage, y=p)) +
-    theme_linedraw() +
+    theme_bw() +
     theme(
       panel.grid.major.x = element_blank(),
       panel.grid.minor.x = element_blank(),
