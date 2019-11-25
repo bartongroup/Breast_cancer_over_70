@@ -35,4 +35,13 @@ Data received. Done some preliminary analysis. Meeting with Sarah. What to do:
 
 Working on the document. Doing proportion time-courses. This seems to give convincing results.
 
+# 15/11/2019 
+
+Over 71 data, better plots, timelines.
+
+# 25/22/2019
+
+Created publication-quality figures. Still, need data for the assessment figure.
+
+
 

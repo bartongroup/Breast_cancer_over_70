@@ -11,12 +11,18 @@ Collaborators: [Sarah Savaridas](https://www.dundee.ac.uk/people/sarah-savaridas
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, cache=TRUE)
+```
+
+```{r libs, include=FALSE}
 library(nlstools)
 library(tidyverse)
 library(cowplot)
 library(knitr)
 library(kableExtra)
 cbPalette <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+pdf_dir <- "~/projects/breastcancer/pdf"
+if(!dir.exists(pdf_dir)) dir.create(pdf_dir)
+pdf_url <- "http://www.compbio.dundee.ac.uk/user/mgierlinski/breastcancer/pdf/"
 ```
 
 
@@ -406,11 +412,18 @@ d71 <- groupAge(filter(sdat, Midage > 71))
 ```{r over_71_plot2, fig.width=4, fig.height=3}
 plotGroupAge <- function(d, what="count", pos="dodge", x="Diagnostic", group="Outcome") {
   d <- d %>%
-    mutate(
-      x = d[[x]],
-      group = d[[group]],
+    mutate(Outcome = recode_factor(Outcome, 
+                                    "direct_bc_death" = "Direct BC death",
+                                    "indirect_bc_death" = "Indirect BC death",
+                                    "unrelated_death" = "Unrelated death",
+                                    "survival" = "Survival"
+                                   )) %>% 
+  mutate(
+      x = !!as.name(x),
+      group = !!as.name(group),
       y = if(what == "count") n else p
-    )
+  )
+
 
   if(pos == "stack") {
     max.y <- 1.05
@@ -562,3 +575,95 @@ tc_both$coef %>% mutate_at(vars(-Parameter), ~sprintf("%.3g", .)) %>% myKable
 In both cases the decrease in direct BC deaths proportion is about $0.012\pm0.001$, that is $(1.2\pm0.1)\%$ per year (95% condfidence interval). Also, a small p-value on the slope indicates that the decrease with age is highly significant.
 
 
+
+# Publication figures
+
+```{r fig_assessment, fig.width=5, fig.height=3}
+ass71 <- tribble(
+  ~assessment, ~n,
+  "Imaging only", 600,
+  "Benign biopsy", 293,
+  "Low risk cancer", 116,
+  "Intermediate risk cancer", 328,
+  "High risk cancer", 122
+) %>% 
+  mutate(prop = n / sum(n)) %>% 
+  mutate(assessment = as_factor(assessment))
+
+g <- ggplot(ass71, aes(x=assessment, y=n)) +
+  theme_linedraw() +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.x = element_blank()
+  ) +
+  geom_col() +
+  coord_flip() +
+  scale_y_continuous(expand=c(0,0), limits=c(0, max(ass71$n)*1.05)) +
+  labs(x=NULL, y="Patient count")
+g
+
+file <- "assessment.pdf"
+link_ass <- paste0(pdf_url, file)
+ggsave(file.path(pdf_dir, file), plot = g, device = "pdf", width=4, height=2.5)
+```
+
+Warning: this is not the final figure, numbers are incorrect
+
+[Download](`r link_ass`)
+
+
+
+```{r fig_death_prop, fig.width=8, fig.height=3}
+plotDeathProp <- function(d, min.age=37.5) {
+  value <- cases[[1]]$value
+  others <- cases[[1]]$others
+  
+  dat <- d %>% 
+    findOutcomeProportion(value, others)
+  coef <- timeCourseFit(d, value, others, min.age=min.age)
+  slope <- coef$Estimate[1]
+  half <- coef$Estimate[2]
+
+  xx <- c(min.age, 87.5)
+  mod <- tibble(x = xx, y = 0.5 - slope*half + xx * slope)
+
+  ggplot(data=dat, aes(x=Midage, y=p)) +
+    theme_linedraw() +
+    theme(
+      panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(),
+      panel.grid.minor.y = element_blank()
+    ) +
+    geom_errorbar(aes(x=Midage, ymin=p-se, ymax=p+se), width=0.2) +
+    geom_point(size=1.5) +
+    labs(x = "Age", y = "Proportion") +
+    scale_y_continuous(limits=c(0, 1), expand=c(0, 0)) +
+    geom_line(data=mod, aes(x=x, y=y), group=1) +
+    geom_vline(xintercept = half, linetype = "dotted", colour="grey50")
+}
+
+g1 <- plotDeathProp(d_both) + labs(title="All patients")
+g2 <- plotDeathProp(d_sym) + labs(title="Symptomatic patients", y=NULL)
+g <- plot_grid(g1, g2, nrow=1, align="h")
+g
+
+file <- "death_proportion.pdf"
+link_death <- paste0(pdf_url, file)
+ggsave(file.path(pdf_dir, file), plot = g, device = "pdf", width=8, height=3)
+```
+
+[Download](`r link_death`)
+
+```{r outcome_plot, fig.width=10, fig.height=4}
+g1 <- plotGroupAge(d71, what="proportion", x="Outcome", group="Diagnostic") + theme(axis.text.x = element_text(angle=40, hjust=1)) + ggtitle("71+") + theme(legend.position = "none")
+g2 <- sdat %>% filter(Midage < 71) %>% groupAge %>% plotGroupAge(what="proportion", x="Outcome", group="Diagnostic") + theme(axis.text.x = element_text(angle=40, hjust=1)) + ggtitle("26-70")
+
+g <- plot_grid(g1, g2, nrow=1, align = "h", rel_widths = c(1,1.3))
+g
+
+file <- "outcome.pdf"
+link_outcome <- paste0(pdf_url, file)
+ggsave(file.path(pdf_dir, file), plot = g, device = "pdf", width=8, height=3)
+```
+
+[Download](`r link_outcome`)
