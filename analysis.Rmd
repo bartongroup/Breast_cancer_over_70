@@ -40,7 +40,7 @@ dat <- read_tsv("surv.txt", col_types = cols()) %>%
   rename(Diagnostic = "Diagnostic route") %>% 
   mutate(Outcome = tolower(Outcome)) %>% 
   filter(Diagnostic != "other" & Age != "16-20" & Age != "21-25") %>% 
-  mutate(Diagnostic = recode(Diagnostic, "sympto" = "symptoms", "screen" = "screening")) %>% 
+  mutate(Diagnostic = recode(Diagnostic, "sympto" = "symptomatic", "screen" = "screening")) %>% 
   mutate_at(vars(Outcome, Diagnostic, Age), as_factor)
 
 sdat <- dat %>% group_by(Outcome, Diagnostic, Age) %>%
@@ -554,7 +554,7 @@ timeCourse <- function(d, value, others, min.age=37.5, tit=NULL, with.half=FALSE
 
 ```{r time_course_symptoms, fig.width=6, fig.height=3}
 d_sym <- sdat %>%
-  filter(Diagnostic=="symptoms")
+  filter(Diagnostic=="symptomatic")
 tc_sym <- timeCourse(d_sym, cases[[1]]$value, cases[[1]]$others, tit=cases[[1]]$name, with.half = TRUE)
 tc_sym$plot 
 tc_sym$coef %>% mutate_at(vars(-Parameter), ~sprintf("%.3g", .)) %>% myKable
@@ -672,7 +672,7 @@ plotDeathProp <- function(d, min.age=37.5) {
     ) +
     geom_errorbar(aes(x=Midage, ymin=p-se, ymax=p+se), width=0.2) +
     geom_point(size=1.5) +
-    labs(x = "Age", y = "Proportion") +
+    labs(x = "Age", y = "Proportion of direct BC deaths") +
     scale_y_continuous(limits=c(0, 1), expand=c(0, 0)) +
     geom_line(data=mod, aes(x=x, y=y), group=1) +
     geom_vline(xintercept = half, linetype = "dotted", colour="grey50")
@@ -691,8 +691,8 @@ ggsave(file.path(pdf_dir, file), plot = g, device = "pdf", width=8, height=3)
 [Download](`r link_death`)
 
 ```{r outcome_plot, fig.width=10, fig.height=4}
-g1 <- plotGroupAge(d71, what="proportion", x="Outcome", group="Diagnostic") + theme(axis.text.x = element_text(angle=40, hjust=1)) + ggtitle("71+") + theme(legend.position = "none")
-g2 <- sdat %>% filter(Midage < 71) %>% groupAge %>% plotGroupAge(what="proportion", x="Outcome", group="Diagnostic") + theme(axis.text.x = element_text(angle=40, hjust=1)) + ggtitle("26-70")
+g1 <- plotGroupAge(d71, what="proportion", x="Outcome", group="Diagnostic") + theme(axis.text.x = element_text(angle=40, hjust=1)) + ggtitle("71+") + theme(legend.position = "none") + labs(y="Proportion")
+g2 <- sdat %>% filter(Midage < 71) %>% groupAge %>% plotGroupAge(what="proportion", x="Outcome", group="Diagnostic") + theme(axis.text.x = element_text(angle=40, hjust=1)) + ggtitle("26-70") + labs(y=NULL, fill="Diagnostic route")
 
 g <- plot_grid(g1, g2, nrow=1, align = "h", rel_widths = c(1,1.3))
 g
