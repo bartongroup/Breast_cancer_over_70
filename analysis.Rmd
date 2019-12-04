@@ -600,7 +600,7 @@ g <- ggplot(ds, aes(x=Age, y=p)) +
     panel.grid.minor.y = element_blank(),
     axis.text.x = element_text(angle=40, hjust=1)
   ) +
-  geom_errorbar(aes(ymin=p_lo, ymax=p_up), width=0.1) +
+  geom_errorbar(aes(ymin=p_lo, ymax=p_up), width=0.2) +
   geom_point() +
   labs(x="Age group", y="Mortality")
 g
