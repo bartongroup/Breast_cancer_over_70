@@ -11,11 +11,18 @@ Collaborators: [Sarah Savaridas](https://www.dundee.ac.uk/people/sarah-savaridas
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, cache=TRUE)
+```
+
+```{r libs, include=FALSE}
+library(nlstools)
 library(tidyverse)
 library(cowplot)
 library(knitr)
 library(kableExtra)
 cbPalette <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+pdf_dir <- "~/projects/breastcancer/pdf"
+if(!dir.exists(pdf_dir)) dir.create(pdf_dir)
+pdf_url <- "http://www.compbio.dundee.ac.uk/user/mgierlinski/breastcancer/pdf/"
 ```
 
 
@@ -33,7 +40,7 @@ dat <- read_tsv("surv.txt", col_types = cols()) %>%
   rename(Diagnostic = "Diagnostic route") %>% 
   mutate(Outcome = tolower(Outcome)) %>% 
   filter(Diagnostic != "other" & Age != "16-20" & Age != "21-25") %>% 
-  mutate(Diagnostic = recode(Diagnostic, "sympto" = "symptoms", "screen" = "screening")) %>% 
+  mutate(Diagnostic = recode(Diagnostic, "sympto" = "symptomatic", "screen" = "screening")) %>% 
   mutate_at(vars(Outcome, Diagnostic, Age), as_factor)
 
 sdat <- dat %>% group_by(Outcome, Diagnostic, Age) %>%
@@ -215,22 +222,24 @@ findOutcomeProportion <- function(d, value, others) {
     mutate(row = row_number()) %>% 
     group_by(row) %>%
     do({
-      #ci <- prop.test(.$s, .$n)$conf.int
-      #tibble(p_lo = ci[1], p_up = ci[2])
+      ci <- suppressWarnings(prop.test(.$s, .$n)$conf.int)
       se <- sqrt(.$p * (1 - .$p) / .$n)
-      tibble(p_lo = .$p - se, p_up = .$p + se, se = se)
+      tibble(p_lo = ci[1], p_up = ci[2], se = se)
     }) %>% 
     ungroup
   
   bind_cols(ds, select(properr, p_lo, p_up, se))
 }
 
-plotOutcomeProportion <- function(d, value, others, tit=NULL) {
+plotOutcomeProportion <- function(d, value, others, tit=NULL, err="se") {
   if(is.null(tit)) tit <- paste(value, "proportion")
   pd <- position_dodge(width=0.35)
-  d %>% 
-    findOutcomeProportion(value, others) %>% 
-  ggplot(aes(x=Age, y=p, group=Diagnostic, colour = Diagnostic)) +
+  d <- d %>% 
+    findOutcomeProportion(value, others)
+  if(err == "se") {
+    d <- d %>% mutate(p_lo = p - se, p_up = p + se)
+  }
+  ggplot(d, aes(x=Age, y=p, group=Diagnostic, colour = Diagnostic)) +
     theme_linedraw() +
     theme(panel.grid = element_blank(), axis.text.x=element_text(angle=45, hjust=1)) +
     geom_errorbar(aes(x=Age, ymin=p_lo, ymax=p_up, colour=Diagnostic), width=0.35, position=pd) +
@@ -259,9 +268,9 @@ cases <- list(
 )
 ```
 
-```{r age_death_bc_proportion, fig.width=6, fig.height=12}
+```{r age_death_bc_proportion, fig.width=6, fig.height=12, error=FALSE, message=FALSE}
 map(cases, function(case) {
-  plotOutcomeProportion(sdat, value = case$value, others = case$others, tit = case$name)   
+  plotOutcomeProportion(sdat, value = case$value, others = case$others, tit = case$name, err="se")   
 }) %>% 
   plot_grid(plotlist = ., ncol=1)  
 ```
@@ -316,7 +325,7 @@ Direct BC death proportions are much smaller in screened patients than in the sy
 
 # Alternative visualization
 
-I replace are range with the middle of the range and fit numerical data with a third-degree polynomial, taking standard errors into account. Here is what the models look like.
+I replace are range with the middle of the range and fit numerical data with a third-degree polynomial, taking standard errors into account. Here is what the models look like. Errors are standard errors.
 
 
 ```{r fit_funs}
@@ -340,12 +349,16 @@ plotFitData <- function(d, value, others, FITFUN=fitPoly, ..., tit=NULL, with.sm
   
   g <- ggplot(data=dat, aes(x=Midage, y=p, group=Diagnostic, colour = Diagnostic)) +
     theme_linedraw() +
-    theme(panel.grid = element_blank()) +
-    geom_errorbar(aes(x=Midage, ymin=p_lo, ymax=p_up, colour=Diagnostic), width=0.2) +
+    theme(
+      panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(),
+      panel.grid.minor.y = element_blank()
+    ) +
+    geom_errorbar(aes(x=Midage, ymin=p-se, ymax=p+se, colour=Diagnostic), width=0.2) +
     geom_point(size=1.5) +
     labs(x = "Age group", y = "Proportion", title=tit) +
     scale_colour_manual(values = cbPalette) +
-    scale_y_continuous(limits=c(0,max.y))
+    scale_y_continuous(limits=c(0,max.y), expand=c(0,0))
 
   if(!is.null(FITFUN)) {
     mod <- FITFUN(d, value, others, ...)
@@ -363,7 +376,7 @@ plotFitData <- function(d, value, others, FITFUN=fitPoly, ..., tit=NULL, with.sm
 map(cases, function(case) {
   plotFitData(sdat, value = case$value, others = case$others, tit = case$name)   
 }) %>%  
-  plot_grid(plotlist = ., ncol=1) 
+  plot_grid(plotlist = ., ncol=1)
 ```
 
 
@@ -397,8 +410,20 @@ d71 <- groupAge(filter(sdat, Midage > 71))
 ```
 
 ```{r over_71_plot2, fig.width=4, fig.height=3}
-plotGroupAge <- function(d, what="count", pos="dodge") {
-  d <- d %>% mutate(y = if(what == "count") n else p)
+plotGroupAge <- function(d, what="count", pos="dodge", x="Diagnostic", group="Outcome") {
+  d <- d %>%
+    mutate(Outcome = recode_factor(Outcome, 
+                                    "direct_bc_death" = "Direct BC death",
+                                    "indirect_bc_death" = "Indirect BC death",
+                                    "unrelated_death" = "Unrelated death",
+                                    "survival" = "Survival"
+                                   )) %>% 
+  mutate(
+      x = !!as.name(x),
+      group = !!as.name(group),
+      y = if(what == "count") n else p
+  )
+
 
   if(pos == "stack") {
     max.y <- 1.05
@@ -408,10 +433,14 @@ plotGroupAge <- function(d, what="count", pos="dodge") {
     max.y <- max(d$p_up) * 1.03
   }
   
-  g <- ggplot(d, aes(x=Diagnostic, y=y, group=Outcome, fill=Outcome)) +
+  g <- ggplot(d, aes(x=x, y=y, group=group, fill=group)) +
     geom_col(position = pos, width=0.6, colour="grey30") +
-    theme_linedraw() +
-    theme(panel.grid.major.x = element_blank()) +
+    theme_bw() +
+    theme(
+      panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(),
+      panel.grid.minor.y = element_blank()
+    ) +
     scale_fill_manual(values=cbPalette) +
     scale_y_continuous(expand=c(0,0), limits=c(0, max.y)) +
     labs(x=NULL, y=what)
@@ -430,24 +459,49 @@ ftab <- select(dfi, n, not_n) %>% as.matrix
 ft <- fisher.test(ftab, alternative="greater")
 ```
 
-The unrelated death proportion is greater in the symptomatic patients. The difference is statistically significant, $p = `r signif(ft$p.value, 2)`$.
+The unrelated death proportion is greater in the symptomatic patients. The difference is statistically significant, $p = `r signif(ft$p.value, 2)`$. The odds ratio (the effect size when comparing proportions) is `r signif(ft$estimate, 2)`.
 
-Below I repeat the above calculations for each age group (above 71) separately. As we can see, the difference in unrelated deaths is less convincing per group (overlapping error bars), only becomes pronounced when they are pooled. Also, the last figure in the "Alternative visualization" section (above) shows very little difference between the two diagnostics, when all ages trend is taken into account.
+Below I repeat the above calculations for each age group (above 71) separately. As we can see, the difference in unrelated deaths is less convincing per group (overlapping error bars), only becomes pronounced when they are pooled. Also, the number of screened patients become very small at later ages.
 
 ```{r age_comparison, fig.width=10, fig.height=3}
-ages <- c("71-75", "76-80", "81-85", "86+")
-map(ages, function(age) {
-  sdat %>% 
-    filter(Age == age) %>% 
-    groupAge %>% 
-    plotGroupAge(what="proportion") +
-      ggtitle(age) +
-      theme(legend.position = "none")
-}) %>% 
-  plot_grid(plotlist=., nrow=1)
+plotAgeComparison <- function(d, ages=c("71-75", "76-80", "81-85", "86+"), what="proportion") {
+  map(ages, function(age) {
+    d %>% 
+      filter(Age == age) %>% 
+      groupAge %>% 
+      plotGroupAge(what=what) +
+        ggtitle(age) +
+        theme(legend.position = "none")
+  }) %>% 
+    plot_grid(plotlist=., nrow=1)
+}
+
+plotAgeComparison(sdat, what="count")
+plotAgeComparison(sdat, what="proportion")
 ```
 
+Below I repeat the figure showing outcome proportion for all age groups. Instead of standard error I plot 95% confidence intervals and change the vertical axis range to zoom into the data. It shows very little difference between the two diagnostics, when all ages trend is taken into account.
 
+```{r plot_again}
+plotOutcomeProportion(sdat, value = cases[[4]]$value, others = cases[[4]]$others, tit = cases[[4]]$name, err="ci") + coord_cartesian(ylim=c(0,0.5))
+```
+
+Incidentally, there is a bigger difference in the 56-60 age group than in 66-70, while there is not enough screening data from the 61-65 group.
+
+My feeling is that though there is a statistically significant difference in unrelated deaths between the two diagnostics, it only becomes apparent when data are pooled over four age groups. When looking at individual groups and a whole-age trend, this is less convincing. The symptomatic data have enough counts and the trend is clear with small error bars. The screened patient data are simply too small - it is very noisy and the age trend is not clear.
+
+## Alternative plot
+
+If we want to talk about the difference in unrelated deaths, this plot shows it more directly. In the right panel I show a "control", which is all the patients aged 26-70. It is interesting to notice that unrelated deaths are the other way around, while all other outcomes have the same direction of change.
+
+```{r alternative_71, fig.width=10, fig.height=4}
+g1 <- plotGroupAge(d71, what="proportion", x="Outcome", group="Diagnostic") + theme(axis.text.x = element_text(angle=45, hjust=1)) + ggtitle("71+")
+g2 <- sdat %>% filter(Midage < 71) %>% groupAge %>% plotGroupAge(what="proportion", x="Outcome", group="Diagnostic") + theme(axis.text.x = element_text(angle=45, hjust=1)) + ggtitle("26-70")
+
+plot_grid(g1, g2, nrow=1)
+```
+
+Perhaps there is something in it...
 
 # Age dependence of BC deaths
 
@@ -455,53 +509,54 @@ Here we look how proportion of direct breast cancer deaths (vs all deaths) chang
 
 From figures above we notice that the proportion of BC deaths decreases with age only above the age of about 35. Hence, we fit only ages 35+ with a linear regression.
 
-Plots show the best fit, tables show regression parameters.
+We use linear regression parameterized as
+
+\[y = \frac{1}{2} - t_{1/2} \beta + \beta x,\]
+
+where $\beta$ is the slope and $t_{1/2}$ is the age at which model propotion is $\frac{1}{2}$. This is just a straight line, but instead of slope and intercept we have slope and half-life. This model representation allows us to estimate half-life uncertainty directly from the fit.
+
+Plots show the best fit, tables show regression parameters. The error bars on data are standard errors.
 
 ```{r time_course_fit}
-timeCourseFit <- function(d, value, others, min.age=35) {
+# we fit data with a straight line parametrized by
+# slope and age at which proportion is 0.5 (parameter Half).
+# This allows us to calculate the error of the half-life
+timeCourseFit <- function(d, value, others, min.age) {
  dx <- d %>%  
     findOutcomeProportion(value, others) %>% 
-    select(x=Midage, y=p, se)
- m <- nls(y ~ Intercept + Slope*x, start=list(Intercept=1, Slope=-0.1), weights=1/se^2, data=dx)
- summary(m)$coefficients %>%
+    filter(Midage >= min.age) %>% 
+    select(x = Midage, y = p, se)
+ m = nls(y ~ 0.5 - Slope*Half + Slope*x, start=list(Slope=-0.1, Half=70), weights=1/se^2, data=dx)
+ cbind(summary(m)$coefficients, confint2(m)) %>% 
    as.data.frame %>%
    rownames_to_column(var="Parameter")
 }
 
-timeCourse <- function(d, value, others, min.age=35, tit=NULL, with.half=FALSE) {
+timeCourse <- function(d, value, others, min.age=37.5, tit=NULL, with.half=FALSE) {
   # fit time course with a linear function, using nls to include errors
-  coef <- timeCourseFit(d, value, others, min.age=35)
-  b0 <- coef$Estimate[1]
-  b1 <- coef$Estimate[2]
+  coef <- timeCourseFit(d, value, others, min.age=min.age)
+  slope <- coef$Estimate[1]
+  half <- coef$Estimate[2]
+  half.err <- (coef$`97.5 %`[2] - coef$`2.5 %`[2]) / 2
 
-  # find half time and its error, using inverse linear fit
-  dx <- d %>%  
-    findOutcomeProportion(value, others) %>% 
-    select(x=Midage, y=p, se)
-  f12 <- lm(x ~ y, data=dx)
-  p12 <- predict(f12, tibble(y=0.5), se.fit = TRUE, level=0.95)
-  
-  halfx <- p12$fit
-  halfx.err <- p12$se.fit
-  
   xx <- c(min.age, 87.5)
-  mod <- tibble(x = xx, y = b0 + xx * b1)
+  mod <- tibble(x = xx, y = 0.5 - slope*half + xx * slope)
   g <- plotFitData(d, value, others, FITFUN=NULL, tit=tit) +
     geom_line(data=mod, aes(x=x, y=y), group=1, colour=1)
   if(with.half) {
     g <- g + 
       #geom_tile(x=halfx, width=halfx.err, y=0.5, height=0.5, fill="grey80") +
-      geom_vline(xintercept = halfx, linetype = "dotted", colour="grey50")
+      geom_vline(xintercept = half, linetype = "dotted", colour="grey50")
   }
-  list(plot=g, coef=coef, half=halfx, half.err=halfx.err)
+  list(plot=g, coef=coef, half=half, half.err=half.err)
 }
 ```
 
 ```{r time_course_symptoms, fig.width=6, fig.height=3}
 d_sym <- sdat %>%
-  filter(Diagnostic=="symptoms")
+  filter(Diagnostic=="symptomatic")
 tc_sym <- timeCourse(d_sym, cases[[1]]$value, cases[[1]]$others, tit=cases[[1]]$name, with.half = TRUE)
-tc_sym$plot
+tc_sym$plot 
 tc_sym$coef %>% mutate_at(vars(-Parameter), ~sprintf("%.3g", .)) %>% myKable
 ```
 
@@ -512,11 +567,139 @@ d_both <- sdat %>%
   group_by(Age, Outcome) %>% 
   summarise(n = sum(n), Midage = Midage[1]) %>% 
   mutate(Diagnostic = "both")
-tc_both <- timeCourse(d_both, cases[[1]]$value, cases[[1]]$others, tit=cases[[1]]$name)
+tc_both <- timeCourse(d_both, cases[[1]]$value, cases[[1]]$others, tit=cases[[1]]$name, with.half = TRUE)
 tc_both$plot 
-tc_both$coef %>% mutate_at(vars(-Parameter), ~sprintf("%.3g", .)) %>% myKable
+tc_both$coef %>% mutate_at(vars(-Parameter), ~sprintf("%.3g", .)) %>% myKable 
 ```
 
-In both cases the decrease in direct BC deaths proportion is about $0.012\pm0.001$, that is $(1.2\pm0.1)\%$ per year. Also, a small p-value on the slope indicates that the decrease with age is highly significant.
+In both cases the decrease in direct BC deaths proportion is about $0.012\pm0.001$, that is $(1.2\pm0.1)\%$ per year (95% condfidence interval). Also, a small p-value on the slope indicates that the decrease with age is highly significant.
 
 
+
+# Publication figures
+
+```{r mortality, fig.width=5, fig.height=3}
+ds <- sdat %>% 
+  group_by(Age) %>% 
+  summarise(s = sum(n[Outcome != "survival"]), n = sum(n), p = s / n)
+
+properr <- ds %>%
+    mutate(row = row_number()) %>% 
+    group_by(row) %>%
+    do({
+      ci <- suppressWarnings(prop.test(.$s, .$n)$conf.int)
+      se <- sqrt(.$p * (1 - .$p) / .$n)
+      tibble(p_lo = ci[1], p_up = ci[2], se = se)
+    }) %>% 
+    ungroup
+ds <- bind_cols(ds, select(properr, p_lo, p_up, se))
+
+g <- ggplot(ds, aes(x=Age, y=p)) +
+  theme_bw() +
+  theme(
+    panel.grid.minor.y = element_blank(),
+    axis.text.x = element_text(angle=40, hjust=1)
+  ) +
+  geom_errorbar(aes(ymin=p_lo, ymax=p_up), width=0.2) +
+  geom_point() +
+  labs(x="Age group", y="Mortality")
+g
+
+file <- "mortality.pdf"
+link_mortality <- paste0(pdf_url, file)
+ggsave(file.path(pdf_dir, file), plot = g, device = "pdf", width=4, height=3)
+```
+
+[Download](`r link_mortality`)
+
+
+
+```{r fig_assessment, fig.width=4, fig.height=2.5}
+ass71 <- tribble(
+  ~assessment, ~n,
+  "High risk", 122,
+  "Intermediate risk", 396,
+  "Low risk", 143,
+  #"Invasivness/grade unknown", 17,
+  "Benign biopsy", 293,
+  "Further imaging only", 1309
+) %>% 
+  mutate(prop = n / sum(n)) %>% 
+  mutate(assessment = as_factor(assessment))
+
+g <- ggplot(ass71, aes(x=fct_rev(assessment), y=n)) +
+  theme_bw() +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.x = element_blank()
+  ) +
+  geom_col() +
+  geom_text(aes(label=n), hjust=0, nudge_y = 15, size=2.6) +
+  coord_flip() +
+  scale_y_continuous(expand=c(0,0), limits=c(0, max(ass71$n)*1.14)) +
+  labs(x=NULL, y="Patient count")
+g
+
+file <- "assessment.pdf"
+link_ass <- paste0(pdf_url, file)
+ggsave(file.path(pdf_dir, file), plot = g, device = "pdf", width=4, height=2.5)
+```
+
+[Download](`r link_ass`)
+
+
+
+```{r fig_death_prop, fig.width=8, fig.height=3}
+plotDeathProp <- function(d, min.age=37.5) {
+  value <- cases[[1]]$value
+  others <- cases[[1]]$others
+  
+  dat <- d %>% 
+    findOutcomeProportion(value, others)
+  coef <- timeCourseFit(d, value, others, min.age=min.age)
+  slope <- coef$Estimate[1]
+  half <- coef$Estimate[2]
+
+  xx <- c(min.age, 87.5)
+  mod <- tibble(x = xx, y = 0.5 - slope*half + xx * slope)
+
+  ggplot(data=dat, aes(x=Midage, y=p)) +
+    theme_bw() +
+    theme(
+      panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(),
+      panel.grid.minor.y = element_blank()
+    ) +
+    geom_errorbar(aes(x=Midage, ymin=p-se, ymax=p+se), width=1) +
+    geom_point(size=1.5) +
+    labs(x = "Age", y = "Proportion of direct BC deaths") +
+    scale_y_continuous(limits=c(0, 1), expand=c(0, 0)) +
+    geom_line(data=mod, aes(x=x, y=y), group=1) +
+    geom_vline(xintercept = half, linetype = "dotted", colour="grey50")
+}
+
+g1 <- plotDeathProp(d_both) + labs(title="All patients")
+g2 <- plotDeathProp(d_sym) + labs(title="Symptomatic patients", y=NULL)
+g <- plot_grid(g1, g2, nrow=1, align="h")
+g
+
+file <- "death_proportion.pdf"
+link_death <- paste0(pdf_url, file)
+ggsave(file.path(pdf_dir, file), plot = g, device = "pdf", width=8, height=3)
+```
+
+[Download](`r link_death`)
+
+```{r outcome_plot, fig.width=10, fig.height=4}
+g1 <- plotGroupAge(d71, what="proportion", x="Outcome", group="Diagnostic") + theme(axis.text.x = element_text(angle=40, hjust=1)) + ggtitle("71+") + theme(legend.position = "none") + labs(y="Proportion")
+g2 <- sdat %>% filter(Midage < 71) %>% groupAge %>% plotGroupAge(what="proportion", x="Outcome", group="Diagnostic") + theme(axis.text.x = element_text(angle=40, hjust=1)) + ggtitle("26-70") + labs(y=NULL, fill="Diagnostic route")
+
+g <- plot_grid(g1, g2, nrow=1, align = "h", rel_widths = c(1,1.3))
+g
+
+file <- "outcome.pdf"
+link_outcome <- paste0(pdf_url, file)
+ggsave(file.path(pdf_dir, file), plot = g, device = "pdf", width=8, height=3)
+```
+
+[Download](`r link_outcome`)
