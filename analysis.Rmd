@@ -575,24 +575,39 @@ I believe they are referring to over 71, so we focus on this group.
 
 Let us summarise deaths in symptomatic and screening patients.
 
-```{r cancer_unrelated_deaths}
+```{r cancer_unrelated_deaths_71}
+death_propotions <- function(d) {
+  d %>%
+    mutate(Outcome = recode(Outcome, direct_bc_death="bc_death", indirect_bc_death="bc_death")) %>% 
+    group_by(Outcome, Diagnostic) %>%
+    summarise(count = sum(n)) %>%
+    ungroup() %>% 
+    group_by(Diagnostic) %>% 
+    mutate(total = sum(count), prop = count / total) %>%
+    ungroup() %>% 
+    pivot_wider(id_cols=Diagnostic, names_from=Outcome, values_from=c(count, prop))
+}
+
 bc_outcome <- sdat %>%
   filter(Midage > 71) %>% 
-  mutate(Outcome = recode(Outcome, direct_bc_death="bc_death", indirect_bc_death="bc_death")) %>% 
-  group_by(Outcome, Diagnostic) %>%
-  summarise(count = sum(n)) %>%
-  ungroup() %>% 
-  group_by(Diagnostic) %>% 
-  mutate(total = sum(count), prop = count / total) %>%
-  ungroup() %>% 
-  pivot_wider(id_cols=Diagnostic, names_from=Outcome, values_from=c(count, prop))
+  death_propotions()
 
-myKable(bc_outcome)
+myKable(bc_outcome, caption="Cancer deaths vs unrelated deaths, age > 71")
 
 fisher.test(bc_outcome %>% select(count_bc_death, count_unrelated_death))
 ```
 
 We see that in the 71+ age group proportion of breast cancer deaths (direct and indirect) is reduced from 42% for symptomatic patients to 10% for screening patients. At the same time unrelated deaths are 22% and 14%, respectively. The difference between these two proportions is strongly significant ($p=3\times10^{-9}$, Fisher's test).
+
+Just for comparison, the same proportions, but for all age groups:
+
+```{r cancer_unrelated_deaths}
+bc_outcome <- sdat %>%
+  death_propotions()
+
+myKable(bc_outcome, caption="Cancer deaths vs unrelated deaths, all age groups")
+```
+
 
 # Age dependence of BC deaths
 

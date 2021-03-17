@@ -169,7 +169,7 @@ pre code {
 
 <h1 class="title toc-ignore">Breast cancer data analysis</h1>
 <h4 class="author">Marek Gierlinski</h4>
-<h4 class="date">16 March, 2021</h4>
+<h4 class="date">17 March, 2021</h4>
 
 </div>
 
@@ -2989,6 +2989,9 @@ survival
 <p>I believe they are referring to over 71, so we focus on this group.</p>
 <p>Let us summarise deaths in symptomatic and screening patients.</p>
 <table class="table table-condensed" style="font-size: 12px; width: auto !important; ">
+<caption style="font-size: initial !important;">
+Cancer deaths vs unrelated deaths, age &gt; 71
+</caption>
 <thead>
 <tr>
 <th style="text-align:left;">
@@ -3075,6 +3078,103 @@ screening
 ## odds ratio 
 ##     2.6119</code></pre>
 <p>We see that in the 71+ age group proportion of breast cancer deaths (direct and indirect) is reduced from 42% for symptomatic patients to 10% for screening patients. At the same time unrelated deaths are 22% and 14%, respectively. The difference between these two proportions is strongly significant (<span class="math inline">\(p=3\times10^{-9}\)</span>, Fisher’s test).</p>
+<p>Just for comparison, the same proportions, but for all age groups:</p>
+<table class="table table-condensed" style="font-size: 12px; width: auto !important; ">
+<caption style="font-size: initial !important;">
+Cancer deaths vs unrelated deaths, all age groups
+</caption>
+<thead>
+<tr>
+<th style="text-align:left;">
+Diagnostic
+</th>
+<th style="text-align:right;">
+count_bc_death
+</th>
+<th style="text-align:right;">
+count_unrelated_death
+</th>
+<th style="text-align:right;">
+count_survival
+</th>
+<th style="text-align:right;">
+count_unrelated_bc_death
+</th>
+<th style="text-align:right;">
+prop_bc_death
+</th>
+<th style="text-align:right;">
+prop_unrelated_death
+</th>
+<th style="text-align:right;">
+prop_survival
+</th>
+<th style="text-align:right;">
+prop_unrelated_bc_death
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+symptomatic
+</td>
+<td style="text-align:right;">
+3956
+</td>
+<td style="text-align:right;">
+1441
+</td>
+<td style="text-align:right;">
+8773
+</td>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:right;">
+0.28
+</td>
+<td style="text-align:right;">
+0.10
+</td>
+<td style="text-align:right;">
+0.62
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+screening
+</td>
+<td style="text-align:right;">
+385
+</td>
+<td style="text-align:right;">
+297
+</td>
+<td style="text-align:right;">
+6196
+</td>
+<td style="text-align:right;">
+88
+</td>
+<td style="text-align:right;">
+0.06
+</td>
+<td style="text-align:right;">
+0.04
+</td>
+<td style="text-align:right;">
+0.89
+</td>
+<td style="text-align:right;">
+0.01
+</td>
+</tr>
+</tbody>
+</table>
 </div>
 </div>
 <div id="age-dependence-of-bc-deaths" class="section level1">
