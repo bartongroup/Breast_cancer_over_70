@@ -169,7 +169,7 @@ pre code {
 
 <h1 class="title toc-ignore">Breast cancer data analysis</h1>
 <h4 class="author">Marek Gierlinski</h4>
-<h4 class="date">17 March, 2021</h4>
+<h4 class="date">19 March, 2021</h4>
 
 </div>
 
@@ -3176,12 +3176,18 @@ screening
 </tbody>
 </table>
 </div>
+<div id="lead-time-and-length-bias-correction" class="section level2">
+<h2>Lead-time and length-bias correction</h2>
+<p>Lead-time and length-bias corrections can increase screen-detected breast cancers. Without full distribution of survival times it is hard to do exact calculations. I only information if the patient died, but not how long after diagnosis; from your description it seems we don’t have the same time period for all patients, as 10 years in Duffy at al., so it would be hard to apply their approach accurately, but Duffy et al. show that in a similar case a 10-year fatality of screen-detected breast cancers increased from 0.12 to 0.18, that is by about a half.</p>
+<p>If a similar correction were to be applied to our data, it would increase proportion of screened cancer deaths from 0.055 to about 0.083. This is not enough to account for the observed difference between screened and symptomatic patients in our data.</p>
+<p>By the way, there are serious mistakes in the Duffy et al., unless I don’t understand simple ratios. Have a look at their table 2. Total number of screened cancers is 10,100, number of deaths in 10 years is 819 and they quote 10-year fatality rate as 0.12. But 819 / 10100 = 0.08. The same problem is for symptomatic patients. Either “fatality rate” is defined somehow different that deaths / cases, there are mistakes in the paper, which makes it hard to follow and understand what they do.</p>
+</div>
 </div>
 <div id="age-dependence-of-bc-deaths" class="section level1">
 <h1>Age dependence of BC deaths</h1>
 <p>Here we look how proportion of direct breast cancer deaths (vs all deaths) changes as a function of age. I do the calculation twice: once for symptomatic patients only, and then for all patients. Screened patients don’t show a simple linear decrease.</p>
 <p>From figures above we notice that the proportion of BC deaths decreases with age only above the age of about 35. Hence, we fit only ages 35+ with a linear regression.</p>
-<p>We use linear regression parameterized as</p>
+<p>We use linear regression parameterised as</p>
 <p><span class="math display">\[y = \frac{1}{2} - t_{1/2} \beta + \beta x,\]</span></p>
 <p>where <span class="math inline">\(\beta\)</span> is the slope and <span class="math inline">\(t_{1/2}\)</span> is the age at which model propotion is <span class="math inline">\(\frac{1}{2}\)</span>. This is just a straight line, but instead of slope and intercept we have slope and half-life. This model representation allows us to estimate half-life uncertainty directly from the fit.</p>
 <p>Plots show the best fit, tables show regression parameters. The error bars on data are standard errors.</p>

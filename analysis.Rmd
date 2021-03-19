@@ -602,12 +602,22 @@ We see that in the 71+ age group proportion of breast cancer deaths (direct and 
 Just for comparison, the same proportions, but for all age groups:
 
 ```{r cancer_unrelated_deaths}
-bc_outcome <- sdat %>%
+bc_outcome_all <- sdat %>%
   death_propotions()
 
-myKable(bc_outcome, caption="Cancer deaths vs unrelated deaths, all age groups")
+p_sc <- bc_outcome_all$prop_bc_death[2]
+
+
+myKable(bc_outcome_all, caption="Cancer deaths vs unrelated deaths, all age groups")
 ```
 
+## Lead-time and length-bias correction
+
+Lead-time and length-bias corrections can increase screen-detected breast cancers. Without full distribution of survival times it is hard to do exact calculations. I only information if the patient died, but not how long after diagnosis; from your description it seems we don't have the same time period for all patients, as 10 years in Duffy at al., so it would be hard to apply their approach accurately, but Duffy et al. show that in a similar case a 10-year fatality of screen-detected breast cancers increased from 0.12 to 0.18, that is by about a half.
+
+If a similar correction were to be applied to our data, it would increase proportion of screened cancer deaths from `r signif(p_sc, 2)` to about `r signif(p_sc * 0.18 / 0.12, 2)`. This is not enough to account for the observed difference between screened and symptomatic patients in our data.
+
+By the way, there are serious mistakes in the Duffy et al., unless I don't understand simple ratios. Have a look at their table 2. Total number of screened cancers is 10,100, number of deaths in 10 years is 819 and they quote 10-year fatality rate as 0.12. But 819 / 10100 = 0.08. The same problem is for symptomatic patients. Either "fatality rate" is defined somehow different that deaths / cases, there are mistakes in the paper, which makes it hard to follow and understand what they do.
 
 # Age dependence of BC deaths
 
@@ -615,7 +625,7 @@ Here we look how proportion of direct breast cancer deaths (vs all deaths) chang
 
 From figures above we notice that the proportion of BC deaths decreases with age only above the age of about 35. Hence, we fit only ages 35+ with a linear regression.
 
-We use linear regression parameterized as
+We use linear regression parameterised as
 
 \[y = \frac{1}{2} - t_{1/2} \beta + \beta x,\]
 
