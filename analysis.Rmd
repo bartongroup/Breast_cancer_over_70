@@ -427,13 +427,13 @@ map(cases, function(case) {
 ```
 
 
-# Over 71
+# Over 75
 
 Below I re-create fig. 3 from the manuscript, that is the outcome for patients over 71. I create three versions of this figure, showing total counts, proportion and stacked proportion. The total count figure shows that the two groups of patients are unbalanced. We should consider if this can affect the outcome proportions.
 
 Note that the proportion plot includes error bars (95% confidence intervals), which we should show in the paper. These are errors of a proportion. It is almost impossible to plot error bars in a stacked plot.
 
-```{r over71_data}
+```{r over75_data}
 groupAge <- function(d) {
   d <- d %>% 
     mutate(Outcome = recode(Outcome, "unrelated_bc_death" = "unrelated_death")) %>% 
@@ -453,11 +453,11 @@ groupAge <- function(d) {
   bind_cols(d, err)
 }
 
-d71 <- groupAge(filter(sdat, Midage > 71))
+d75 <- groupAge(filter(sdat, Midage > 75))
 ```
 
-```{r over_71_plot2, fig.width=4, fig.height=3}
-plotGroupAge <- function(d, what="count", pos="dodge", x="Diagnostic", group="Outcome") {
+```{r over_75_plot2, fig.width=4, fig.height=3}
+plotGroupAge <- function(d, what="count", pos="dodge", x="Diagnostic", group="Outcome", ymax=NA) {
   d <- d %>%
     mutate(Outcome = recode_factor(Outcome, 
                                     "direct_bc_death" = "Direct BC death",
@@ -472,7 +472,9 @@ plotGroupAge <- function(d, what="count", pos="dodge", x="Diagnostic", group="Ou
   )
 
 
-  if(pos == "stack") {
+  if(!is.null(ymax)) {
+    max.y <- ymax
+  } else if(pos == "stack") {
     max.y <- 1.05
   } else if(what == "count") {
     max.y <- max(d$y) * 1.03
@@ -497,18 +499,19 @@ plotGroupAge <- function(d, what="count", pos="dodge", x="Diagnostic", group="Ou
   g
 }
 
-plotGroupAge(d71, what="count")
-plotGroupAge(d71, what="proportion")
-plotGroupAge(d71, what="proportion", pos="stack")
 
-dfi <- d71 %>% mutate(not_n = tot - n) %>% filter(Outcome == "unrelated_death")
+plotGroupAge(d75, what="count")
+plotGroupAge(d75, what="proportion")
+plotGroupAge(d75, what="proportion", pos="stack")
+
+dfi <- d75 %>% mutate(not_n = tot - n) %>% filter(Outcome == "unrelated_death")
 ftab <- select(dfi, n, not_n) %>% as.matrix
 ft <- fisher.test(ftab, alternative="greater")
 ```
 
 The unrelated death proportion is greater in the symptomatic patients. The difference is statistically significant, $p = `r signif(ft$p.value, 2)`$. The odds ratio (the effect size when comparing proportions) is `r signif(ft$estimate, 2)`.
 
-Below I repeat the above calculations for each age group (above 71) separately. As we can see, the difference in unrelated deaths is less convincing per group (overlapping error bars), only becomes pronounced when they are pooled. Also, the number of screened patients become very small at later ages.
+Below I repeat the above calculations for each age group (above 75) separately. As we can see, the difference in unrelated deaths is less convincing per group (overlapping error bars), only becomes pronounced when they are pooled. Also, the number of screened patients become very small at later ages.
 
 ```{r age_comparison, fig.width=10, fig.height=3}
 plotAgeComparison <- function(d, ages=c("71-75", "76-80", "81-85", "86+"), what="proportion") {
@@ -541,17 +544,17 @@ My feeling is that though there is a statistically significant difference in unr
 
 If we want to talk about the difference in unrelated deaths, this plot shows it more directly. In the right panel I show a "control", which is all the patients aged 26-70. It is interesting to notice that unrelated deaths are the other way around, while all other outcomes have the same direction of change.
 
-```{r alternative_71, fig.width=10, fig.height=4}
-g1 <- plotGroupAge(d71, what="proportion", x="Outcome", group="Diagnostic") + theme(axis.text.x = element_text(angle=45, hjust=1)) + ggtitle("71+")
-g2 <- sdat %>% filter(Midage < 71) %>% groupAge %>% plotGroupAge(what="proportion", x="Outcome", group="Diagnostic") + theme(axis.text.x = element_text(angle=45, hjust=1)) + ggtitle("26-70")
+```{r alternative_75, fig.width=10, fig.height=4}
+g1 <- plotGroupAge(d75, what="proportion", x="Outcome", group="Diagnostic") + theme(axis.text.x = element_text(angle=45, hjust=1)) + ggtitle("75+")
+g2 <- sdat %>% filter(Midage < 75) %>% groupAge %>% plotGroupAge(what="proportion", x="Outcome", group="Diagnostic") + theme(axis.text.x = element_text(angle=45, hjust=1)) + ggtitle("26-70")
 
 plot_grid(g1, g2, nrow=1)
 ```
 
 Perhaps there is something in it...
 
-```{r fisher_71}
-d <- d71 %>%
+```{r fisher_75}
+d <- d75 %>%
   mutate(s = tot - n) %>% 
   pivot_wider(id_cols=Outcome, names_from=Diagnostic, values_from=c(n, s)) %>% 
   nest(data = -Outcome) %>% 
@@ -569,16 +572,12 @@ Adjusted p-value for unrelated deaths is `r sprintf("%s", signif(d[3,]$FDR, 2))`
 
 ## Cancer deaths vs unrelated deaths
 
-To address a point raised by reviewer 2: *What is more convincing though is that the difference in the proportion of deaths both directly and indirectly attributable to breast cancer in the screen detected versus symptomatic patients looks considerably greater than the difference in unrelated deaths between the two groups, which if anything is more supportive of screening reducing mortality,*
-
-I believe they are referring to over 71, so we focus on this group.
-
 Let us summarise deaths in symptomatic and screening patients.
 
-```{r cancer_unrelated_deaths_71}
+```{r cancer_unrelated_deaths_75}
 death_propotions <- function(d) {
   d %>%
-    mutate(Outcome = recode(Outcome, direct_bc_death="bc_death", indirect_bc_death="bc_death")) %>% 
+    #mutate(Outcome = recode(Outcome, direct_bc_death="bc_death", indirect_bc_death="bc_death")) %>% 
     group_by(Outcome, Diagnostic) %>%
     summarise(count = sum(n)) %>%
     ungroup() %>% 
@@ -589,26 +588,30 @@ death_propotions <- function(d) {
 }
 
 bc_outcome <- sdat %>%
-  filter(Midage > 71) %>% 
+  filter(Midage > 75) %>% 
   death_propotions()
 
-myKable(bc_outcome, caption="Cancer deaths vs unrelated deaths, age > 71")
+myKable(bc_outcome, caption="Cancer deaths vs unrelated deaths, age > 75")
 
-fisher.test(bc_outcome %>% select(count_bc_death, count_unrelated_death))
+fisher.test(bc_outcome %>% select(count_direct_bc_death, count_unrelated_death))
 ```
 
-We see that in the 71+ age group proportion of breast cancer deaths (direct and indirect) is reduced from 42% for symptomatic patients to 10% for screening patients. At the same time unrelated deaths are 22% and 14%, respectively. The difference between these two proportions is strongly significant ($p=3\times10^{-9}$, Fisher's test).
+We see that in the 75+ age group proportion of breast cancer deaths (direct and indirect) is reduced from 42% for symptomatic patients to 10% for screening patients. At the same time unrelated deaths are 22% and 14%, respectively. The difference between these two proportions is strongly significant ($p=3\times10^{-9}$, Fisher's test).
 
-Just for comparison, the same proportions, but for all age groups:
+Just for comparison, the same proportions, but for 71-75 group:
 
-```{r cancer_unrelated_deaths}
-bc_outcome_all <- sdat %>%
+```{r cancer_unrelated_deaths_71}
+bc_outcome_71 <- sdat %>%
+  filter(Age == "71-75") %>% 
   death_propotions()
 
-p_sc <- bc_outcome_all$prop_bc_death[2]
+p_sc <- bc_outcome_71$prop_direct_bc_death[2]
 
 
-myKable(bc_outcome_all, caption="Cancer deaths vs unrelated deaths, all age groups")
+myKable(bc_outcome_71, caption="Cancer deaths vs unrelated deaths, 71-75")
+
+fisher.test(bc_outcome_71 %>% select(count_direct_bc_death, count_unrelated_death))
+
 ```
 
 ## Lead-time and length-bias correction
@@ -838,9 +841,12 @@ ggsave(file.path(pdf_dir, file), plot = g, device = "pdf", width=9, height=3)
 
 [Download](`r link_death`)
 
-```{r outcome_plot, fig.width=10, fig.height=4}
-g1 <- plotGroupAge(d71, what="proportion", x="Outcome", group="Diagnostic") + theme(axis.text.x = element_text(angle=40, hjust=1)) + ggtitle("71+") + theme(legend.position = "none") + labs(y="Proportion")
-g2 <- sdat %>% filter(Midage < 71) %>% groupAge %>% plotGroupAge(what="proportion", x="Outcome", group="Diagnostic") + theme(axis.text.x = element_text(angle=40, hjust=1)) + ggtitle("26-70") + labs(y=NULL, fill="Diagnostic route")
+```{r outcome_plot, fig.width=8, fig.height=3}
+g1 <- sdat %>% filter(Midage < 75) %>% groupAge() %>% plotGroupAge(what="proportion", x="Outcome", group="Diagnostic", ymax=1) + theme(axis.text.x = element_text(angle=40, hjust=1)) + ggtitle("26-75") + theme(legend.position = "none") +  labs(y="Proportion", fill="Diagnostic route")
+
+g2 <- sdat %>% filter(Midage > 75) %>% groupAge() %>% plotGroupAge(what="proportion", x="Outcome", group="Diagnostic", ymax=1) + theme(axis.text.x = element_text(angle=40, hjust=1)) + ggtitle("76+") + labs(y=NULL)
+
+
 
 g <- plot_grid(g1, g2, nrow=1, align = "h", rel_widths = c(1,1.3))
 g
