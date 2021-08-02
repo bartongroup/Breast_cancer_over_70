@@ -703,6 +703,8 @@ tc_screen$coef %>% mutate_at(vars(-Parameter), ~sprintf("%.3g", .)) %>% myKable
 
 # Publication figures
 
+## Fig 1
+
 ```{r mortality, fig.width=5, fig.height=3}
 ds <- sdat %>% 
   group_by(Age) %>% 
@@ -737,68 +739,9 @@ ggsave(file.path(pdf_dir, file), plot = g, device = "pdf", width=4, height=3)
 
 [Download](`r link_mortality`)
 
+## Fig 2
 
-
-```{r fig_assessment, fig.width=4, fig.height=2.5}
-ass71 <- tribble(
-  ~assessment, ~n,
-  "High risk", 122,
-  "Intermediate risk", 396,
-  "Low risk", 143,
-  #"Invasivness/grade unknown", 17,
-  "Benign biopsy", 293,
-  "Further imaging only", 1309
-) %>% 
-  mutate(prop = n / sum(n)) %>% 
-  mutate(assessment = as_factor(assessment))
-
-g <- ggplot(ass71, aes(x=fct_rev(assessment), y=n)) +
-  theme_bw() +
-  theme(
-    panel.grid.major.y = element_blank(),
-    panel.grid.minor.x = element_blank()
-  ) +
-  geom_col() +
-  geom_text(aes(label=n), hjust=0, nudge_y = 15, size=2.6) +
-  coord_flip() +
-  scale_y_continuous(expand=c(0,0), limits=c(0, max(ass71$n)*1.14)) +
-  labs(x=NULL, y="Patient count")
-g
-
-file <- "assessment.pdf"
-link_ass <- paste0(pdf_url, file)
-ggsave(file.path(pdf_dir, file), plot = g, device = "pdf", width=4, height=2.5)
-```
-
-[Download](`r link_ass`)
-
-
-```{r fig_screen_sym_proportions, fig.width=8, fig.height=5}
-pd <- position_dodge(width=0.35)
-d <- map_dfr(cases, function(case) {
-  findOutcomeProportion(sdat, case$value, case$others) %>% 
-    mutate(case = case$name)
-})
-g <- ggplot(d, aes(x=Age, y=p, group=Diagnostic, colour = Diagnostic)) +
-    theme_linedraw() +
-    theme(panel.grid = element_blank(), axis.text.x=element_text(angle=45, hjust=1)) +
-    geom_errorbar(aes(x=Age, ymin=p_lo, ymax=p_up, colour=Diagnostic), width=0.35, position=pd) +
-    geom_point(size=1.5, position=pd) +
-    geom_vline(xintercept = seq(0.5,20,1), colour="grey90") +
-    labs(x = "Age group", y = "Proportion") +
-    scale_colour_manual(values = cbPalette) +
-    scale_y_continuous(limits=c(0,1)) +
-  facet_wrap(~case, ncol=2)
-g
-
-file <- "screen_sym_proportions.pdf"
-link_ss <- paste0(pdf_url, file)
-ggsave(file.path(pdf_dir, file), plot = g, device = "pdf", width=8, height=5)
-```
-
-[Download](`r link_ss`)
-
-```{r fig_death_prop, fig.width=9, fig.height=3}
+```{r fig_death_prop, fig.width=8, fig.height=3}
 plotDeathProp <- function(d, min.age=37.5) {
   value <- cases[[1]]$value
   others <- cases[[1]]$others
@@ -831,15 +774,17 @@ plotDeathProp <- function(d, min.age=37.5) {
 g1 <- plotDeathProp(d_both) + labs(title="All patients")
 g2 <- plotDeathProp(d_sym) + labs(title="Symptomatic patients", y=NULL)
 g3 <- plotDeathProp(d_screen) + labs(title="Screened patients", y=NULL)
-g <- plot_grid(g1, g2, g3, nrow=1, align="h")
+g <- plot_grid(g1, g2, nrow=1, align="h")
 g
 
 file <- "death_proportion.pdf"
 link_death <- paste0(pdf_url, file)
-ggsave(file.path(pdf_dir, file), plot = g, device = "pdf", width=9, height=3)
+ggsave(file.path(pdf_dir, file), plot = g, device = "pdf", width=8, height=3)
 ```
 
 [Download](`r link_death`)
+
+## Fig 3
 
 ```{r outcome_plot, fig.width=8, fig.height=3}
 g1 <- sdat %>% filter(Midage < 75) %>% groupAge() %>% plotGroupAge(what="proportion", x="Outcome", group="Diagnostic", ymax=1) + theme(axis.text.x = element_text(angle=40, hjust=1)) + ggtitle("26-75") + theme(legend.position = "none") +  labs(y="Proportion", fill="Diagnostic route")
@@ -857,3 +802,65 @@ ggsave(file.path(pdf_dir, file), plot = g, device = "pdf", width=8, height=3)
 ```
 
 [Download](`r link_outcome`)
+
+## Fig 4
+
+```{r fig_assessment, fig.width=4, fig.height=2.5}
+ass71 <- tribble(
+  ~assessment, ~n,
+  "High risk", 122,
+  "Intermediate risk", 396,
+  "Low risk", 143,
+  "Invasivness/grade unknown", 17,
+  "Benign biopsy", 293,
+  "Further imaging only", 1309
+) %>% 
+  mutate(prop = n / sum(n)) %>% 
+  mutate(assessment = as_factor(assessment)) %>% 
+  filter(assessment != "Invasivness/grade unknown")
+
+g <- ggplot(ass71, aes(x=fct_rev(assessment), y=n)) +
+  theme_bw() +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.x = element_blank()
+  ) +
+  geom_col() +
+  geom_text(aes(label=n), hjust=0, nudge_y = 15, size=2.6) +
+  coord_flip() +
+  scale_y_continuous(expand=c(0,0), limits=c(0, max(ass71$n)*1.14)) +
+  labs(x=NULL, y="Patient count")
+g
+
+file <- "assessment.pdf"
+link_ass <- paste0(pdf_url, file)
+ggsave(file.path(pdf_dir, file), plot = g, device = "pdf", width=4, height=2.5)
+```
+
+[Download](`r link_ass`)
+
+
+```{r fig_screen_sym_proportions, fig.width=8, fig.height=5, eval=FALSE}
+pd <- position_dodge(width=0.35)
+d <- map_dfr(cases, function(case) {
+  findOutcomeProportion(sdat, case$value, case$others) %>% 
+    mutate(case = case$name)
+})
+g <- ggplot(d, aes(x=Age, y=p, group=Diagnostic, colour = Diagnostic)) +
+    theme_linedraw() +
+    theme(panel.grid = element_blank(), axis.text.x=element_text(angle=45, hjust=1)) +
+    geom_errorbar(aes(x=Age, ymin=p_lo, ymax=p_up, colour=Diagnostic), width=0.35, position=pd) +
+    geom_point(size=1.5, position=pd) +
+    geom_vline(xintercept = seq(0.5,20,1), colour="grey90") +
+    labs(x = "Age group", y = "Proportion") +
+    scale_colour_manual(values = cbPalette) +
+    scale_y_continuous(limits=c(0,1)) +
+  facet_wrap(~case, ncol=2)
+g
+
+file <- "screen_sym_proportions.pdf"
+link_ss <- paste0(pdf_url, file)
+ggsave(file.path(pdf_dir, file), plot = g, device = "pdf", width=8, height=5)
+```
+
+
