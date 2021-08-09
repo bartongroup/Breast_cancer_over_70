@@ -3,5 +3,7 @@
 .RData
 .Ruserdata
 .DS_Store
-analysis_cache/
-analysis_files/
+doc/analysis_cache/
+doc/analysis_files/
+_targets
+Manuscript
