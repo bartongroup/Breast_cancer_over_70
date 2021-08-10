@@ -1,4 +1,4 @@
-plot_death_prop <- function(d, mod=NULL, min.age=37.5) {
+plot_death_prop <- function(d, cases, mod=NULL, min.age=37.5) {
   value <- cases[[1]]$value
   others <- cases[[1]]$others
   

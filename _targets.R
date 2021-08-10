@@ -1,3 +1,7 @@
+# Targets file for breast cancer over 70.
+# Usage:
+#  tar_make()
+
 library(targets)
 
 packages <- c("nlstools", "cowplot", "broom", "tidyverse")
@@ -9,6 +13,9 @@ options(dplyr.summarise.inform = FALSE)
 
 files_R <- list.files("R", pattern="*.R$", full.names=TRUE)
 sr_ <- sapply(files_R, source)
+
+
+# ----- Four cases we consider in the report
 
 make_cases <- list(
   tar_target(cases,list(
@@ -27,12 +34,15 @@ make_cases <- list(
   ))
 )
 
+# ----- Read and process input data
 
 read_data <- list(
   tar_target(data_file, "data/surv.txt", format="file"),
   tar_target(raw_data, read_tsv(data_file, col_types = cols())),
   tar_target(set, process_data(raw_data))
 )
+
+# ----- Apply filters to create various subsets
 
 filter_data <- list(
   tar_target(summ_other_deaths_together, set$summ %>% 
@@ -71,6 +81,8 @@ filter_data <- list(
   tar_target(summ_screen, set$summ %>% filter(Diagnostic=="screening"))
 )
 
+# ----- Create figures for the report
+
 figures <- list(
   tar_target(fig_basic_grouping, plot_data(set$summ)),
   tar_target(fig_other_deaths_together, plot_data(summ_other_deaths_together)),
@@ -104,6 +116,8 @@ figures <- list(
   
 )
 
+# ----- Create tables for the report
+
 tables <- list(
   tar_target(tab_chisq, map_df(cases, function(case) {
     cs <- chi2_comparison(set$summ, value = case$value, others = case$others)
@@ -120,16 +134,32 @@ tables <- list(
   tar_target(tab_71_75_death_proportions, set$summ %>% filter(Age == "71-75") %>% death_propotions())
 )
 
+# ----- Regression analysis
 
 regression <- list(
   tar_target(dbc_model, glm(death ~ Diagnostic + Midage, data=set$logreg, family="binomial")),
   tar_target(dbc_logit, logit_prediction(dbc_model))
 )
 
+
+# ----- Create figures for the manuscript, save in "pdf" subdirectory
+
+manuscript_figures <- list(
+  tar_target(fig_1, make_figure_1(set)),
+  tar_target(fig_2, make_figure_2(cases, dbc_logit, summ_sym, summ_screen)),
+  tar_target(fig_3, make_figure_3(set)),
+  tar_target(fig_4, make_figure_4())
+  
+)
+
+# ----- Session info
+
 sesinfo <- list(
   tar_target(session_info, sessionInfo())
 )
 
+
+### ----- All targets
 
 c(
   make_cases,
@@ -138,6 +168,7 @@ c(
   regression,
   tables,
   figures,
+  manuscript_figures,
   sesinfo
 )
 
