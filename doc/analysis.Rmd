@@ -4,7 +4,7 @@ author: "Marek Gierlinski"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
   html_document:
-    css: nice_notebook.css
+    css: tabbed_notebook.css
 ---
 
 Collaborators: [Sarah Savaridas](https://www.dundee.ac.uk/people/sarah-savaridas), [Andrew Evans](https://www.dundee.ac.uk/people/andrew-evans)
@@ -31,7 +31,9 @@ myKable <- function(df, row.names=FALSE, col.names=NA, digits=2, bootstrap="cond
 N <- function(n) prettyNum(n, big.mark = ",")
 ```
 
-# Data
+# {.tabset}
+
+## Data
 
 ```{r read_data}
 tar_load(set)
@@ -47,21 +49,21 @@ set$summ %>% select(Age, Diagnostic, Outcome, n) %>%
   myKable %>% scroll_box(width="300px", height="400px")
 ```
 
-# A few plots
+## A few plots
 
-## Basic grouping
+### Basic grouping
 
 ```{r plot1, fig.width=10, fig.height=3}
 tar_read(fig_basic_grouping)
 ```
 
-## Other deaths together
+### Other deaths together
 
 ```{r plot2, fig.width=10, fig.height=3}
 tar_read(fig_other_deaths_together)
 ```
 
-## Survival excluded
+### Survival excluded
 
 ```{r plot3, fig.width=10, fig.height=3}
 tar_read(fig_survival_excluded_1)
@@ -71,13 +73,13 @@ tar_read(fig_survival_excluded_1)
 tar_read(fig_survival_excluded_1)
 ```
 
-## All other outcomes together (survival included)
+### All other outcomes together (survival included)
 
 ```{r plot5, fig.width=10, fig.height=3}
 tar_read(fig_other_outcomes_together)
 ```
 
-## Diagnostic distribution
+### Diagnostic distribution
 
 ```{r plot6, fig.width=10, fig.height=3}
 tar_read(fig_diagnostic)
@@ -88,7 +90,7 @@ tar_read(fig_diagnostic)
 ```{r death_plot_fun}
 ```
 
-## Direct BC death vs diagnostic
+### Direct BC death vs diagnostic
 
 These plots include actual counts in each proportion.
 
@@ -96,11 +98,11 @@ These plots include actual counts in each proportion.
 tar_read(fig_death_diagnostic)
 ```
 
-# Proportion analysis
+## Proportion analysis
 
 Here, we group data by age and diagnostic route. In each age group we find a proportion of either direct BC deaths or unrelated deaths with respect to all types of deaths or all possible outcomes.
 
-## Proportion plots
+### Proportion plots
 
 These proportions are shown in plots below. Error bars are standard errors of a proportion:
 
@@ -117,7 +119,7 @@ We see that screened patients consistently show lower breast cancer death propor
 
 When we find the proportion of all outcomes, the result is much more independent. The BC deaths are much higher in symptomatic patients but unrelated deaths show very little difference between screened and symptomatic patients - this is encouraging!
 
-## Statistical significance
+### Statistical significance
 
 Next we assess the statistical different between symptoms and screening for each plot. For this, we use a test statistic:
 
@@ -139,7 +141,7 @@ tar_read(chisq_table) %>%
 
 As we mostly see very small p-values (practically zero) the p-value inflation is not a problem. We see that the first free cases are very strongly statistically significant while in the last case, which is still statistically significant at the default 0.05 limit, the effect size (can be quantified by $\chi^2$) is much smaller.
 
-## Statistical significance per age group (direct BC deaths / all)
+### Statistical significance per age group (direct BC deaths / all)
 
 Now we compare proportion direct BC deaths vs all between screening and symptomatic, in each age group separately. We use Fisher's test and correct p-values for multiple tests using Benjamini-Hochberg approach. The adjusted p-value is a false discovery rate (FDR).
 
@@ -153,13 +155,10 @@ tab_fisher_sel %>% filter(case == nm[3]) %>% select(-case) %>% myKable(caption=n
 tab_fisher_sel %>% filter(case == nm[4]) %>% select(-case) %>% myKable(caption=nm[4])
 ```
 
-We see that screening patients have lower BC/all deaths in age groups 51-80, while in other groups counts are too small to make any judgment.
+We see that screening patients have lower BC/all deaths in age groups 51-80, while in other groups counts are too small to make any judgement.
 
-# Conclusion
 
-Direct BC death proportions are much smaller in screened patients than in the symptomatic patients. The effect cannot be attributed to general differences between the two groups, e.g. because of a healthier life style. When we look at unrelated deaths, the difference between the two groups are much smaller.
-
-# Over 75
+## Over 75
 
 Below I re-create fig. 3 from the manuscript, that is the outcome for patients over 71. I create three versions of this figure, showing total counts, proportion and stacked proportion. The total count figure shows that the two groups of patients are unbalanced. We should consider if this can affect the outcome proportions.
 
@@ -197,7 +196,7 @@ Incidentally, there is a bigger difference in the 56-60 age group than in 66-70,
 
 My feeling is that though there is a statistically significant difference in unrelated deaths between the two diagnostics, it only becomes apparent when data are pooled over four age groups. When looking at individual groups and a whole-age trend, this is less convincing. The symptomatic data have enough counts and the trend is clear with small error bars. The screened patient data are simply too small - it is very noisy and the age trend is not clear.
 
-## Alternative plot
+### Alternative plot
 
 If we want to talk about the difference in unrelated deaths, this plot shows it more directly. In the right panel I show a "control", which is all the patients aged 26-70. It is interesting to notice that unrelated deaths are the other way around, while all other outcomes have the same direction of change.
 
@@ -213,7 +212,7 @@ tar_read(tab_fisher_75) %>%
 ```
 
 
-## Cancer deaths vs unrelated deaths
+### Cancer deaths vs unrelated deaths
 
 Let us summarise deaths in symptomatic and screening patients.
 
@@ -236,7 +235,7 @@ myKable(tab_71_75_death_proportions, caption="Cancer deaths vs unrelated deaths,
 fisher.test(tab_71_75_death_proportions %>% select(count_direct_bc_death, count_unrelated_death))
 ```
 
-## Lead-time and length-bias correction
+### Lead-time and length-bias correction
 
 Lead-time and length-bias corrections can increase screen-detected breast cancers. Without full distribution of survival times it is hard to do exact calculations. I only information if the patient died, but not how long after diagnosis; from your description it seems we don't have the same time period for all patients, as 10 years in Duffy at al., so it would be hard to apply their approach accurately, but Duffy et al. show that in a similar case a 10-year fatality of screen-detected breast cancers increased from 0.12 to 0.18, that is by about a half.
 
@@ -244,7 +243,7 @@ If a similar correction were to be applied to our data, it would increase propor
 
 By the way, there are serious mistakes in the Duffy et al., unless I don't understand simple ratios. Have a look at their table 2. Total number of screened cancers is 10,100, number of deaths in 10 years is 819 and they quote 10-year fatality rate as 0.12. But 819 / 10100 = 0.08. The same problem is for symptomatic patients. Either "fatality rate" is defined somehow different that deaths / cases, there are mistakes in the paper, which makes it hard to follow and understand what they do.
 
-# Age dependence of BC deaths
+## Age dependence of BC deaths
 
 Here we look how proportion of direct breast cancer deaths (vs all deaths) changes as a function of age. I do the calculation twice: once for symptomatic patients only, and then for all patients. Screened patients don't show a simple linear decrease.
 
@@ -283,7 +282,7 @@ tc_screen$plot
 tc_screen$coef %>% mutate_at(vars(-Parameter), ~sprintf("%.3g", .)) %>% myKable
 ```
 
-## Logistic regression
+### Logistic regression
 
 An alternative approach would be to build a general linear model, where there is a binary outcome: direct BC death / other death.
 
@@ -306,9 +305,9 @@ tar_read(fig_logreg_diff)
 It varies a lot, but an estimate of $\sim1\%$ per year is adequate and compatible with the simplified linear fit.
 
 
-# Publication figures
+## Manuscript
 
-## Fig 1
+### Fig 1
 
 ```{r mortality, fig.width=5, fig.height=3}
 tar_load(fig_1)
@@ -319,7 +318,7 @@ fig_1_link <- paste0(pdf_url, fig_1$file)
 
 [Download](`r fig_1_link`)
 
-## Fig 2
+### Fig 2
 
 ```{r fig_death_prop, fig.width=8, fig.height=4}
 tar_load(fig_2)
@@ -329,7 +328,7 @@ fig_2_link <- paste0(pdf_url, fig_2$file)
 
 [Download](`r fig_2_link`)
 
-## Fig 3
+### Fig 3
 
 ```{r outcome_plot, fig.width=8, fig.height=3}
 tar_load(fig_3)
@@ -339,7 +338,7 @@ fig_3_link <- paste0(pdf_url, fig_3$file)
 
 [Download](`r fig_3_link`)
 
-## Fig 4
+### Fig 4
 
 ```{r fig_assessment, fig.width=4, fig.height=2.5}
 tar_load(fig_4)
