@@ -131,7 +131,9 @@ tables <- list(
   tar_target(tab_fisher_75, fisher_75(over_75)),
   
   tar_target(tab_75_death_proportions, set$summ %>% filter(Midage > 75) %>% death_propotions()),
-  tar_target(tab_71_75_death_proportions, set$summ %>% filter(Age == "71-75") %>% death_propotions())
+  tar_target(tab_71_75_death_proportions, set$summ %>% filter(Age == "71-75") %>% death_propotions()),
+  
+  tar_target(tab_group_deaths, tabulate_group_deaths(set$summ))
 )
 
 # ----- Regression analysis

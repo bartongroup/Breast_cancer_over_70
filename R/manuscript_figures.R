@@ -1,7 +1,7 @@
 make_figure_1 <- function(set) {
   ds <- set$summ %>% 
     group_by(Age) %>% 
-    summarise(s = sum(n[Outcome != "survival"]), n = sum(n), p = s / n)
+    summarise(direct = sum(n[Outcome == "direct_bc_death"]), s = sum(n[Outcome != "survival"]), n = sum(n), p = s / n)
   
   properr <- ds %>%
     mutate(row = row_number()) %>% 
@@ -25,12 +25,12 @@ make_figure_1 <- function(set) {
     labs(x="Age group at diagnosis", y="All cause mortality") +
     scale_y_continuous(expand=c(0,0), limits=c(0,1))
   
-  file <- "mortality.pdf"
+  file <- "fig_1.pdf"
   ggsave(file.path("pdf", file), plot = pl, device = "pdf", width=4, height=3)
   
   tab <- ds %>% 
     mutate(Survivals = n - s, `Percentage died` = p * 100) %>% 
-    select(Age, `Group size` = n, Survivals, `Deaths of any causes` = s)
+    select(Age, `Group size` = n, Survivals, `Deaths of any causes` = s, `Deaths directly to BC` = direct)
 
   list(
     plot = pl,
@@ -47,8 +47,8 @@ make_figure_2 <- function(cases, dbc_logit, summ_sym, summ_screen) {
   g2 <- plot_death_prop(summ_screen, cases, mod=filter(m, Diagnostic == "screening")) + labs(title="Screened patients", y=NULL)
   pl <- cowplot::plot_grid(g1, g2, nrow=1, align="h")
   
-  file <- "death_proportion.pdf"
-  ggsave(file.path("pdf", file), plot = pl, device = "pdf", width=10, height=3)
+  file <- "fig_2.pdf"
+  ggsave(file.path("pdf", file), plot = pl, device = "pdf", width=8, height=3)
   
   list(
     plot = pl,
@@ -76,7 +76,7 @@ make_figure_3 <- function(set) {
   
   pl <- cowplot::plot_grid(g1, g2, nrow=1, align = "h", rel_widths = c(1,1.3))
   
-  file <- "outcome.pdf"
+  file <- "fig_3.pdf"
   ggsave(file.path("pdf", file), plot = pl, device = "pdf", width=8, height=3)
   
   list(
@@ -112,7 +112,7 @@ make_figure_4 <- function() {
     scale_y_continuous(expand=c(0,0), limits=c(0, max(ass71$n)*1.14)) +
     labs(x=NULL, y="Patient count")
   
-  file <- "assessment.pdf"
+  file <- "fig_4.pdf"
   ggsave(file.path("pdf", file), plot = pl, device = "pdf", width=4, height=2.5)
   
   list(

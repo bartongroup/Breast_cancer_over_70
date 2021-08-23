@@ -165,3 +165,26 @@ logit_prediction <- function(dbc_mod) {
       prob_se = pred_se * exp(pred) / (1 + exp(pred))^2   # error propagation
     )
 }
+
+
+
+tabulate_group_deaths <- function(summ) {
+  s1 <- summ %>% 
+    mutate(group = case_when(
+      Midage < 50 ~ "<50",
+      Midage >= 50 & Midage < 70 ~ "50-70",
+      Midage > 70 ~ ">70"
+    )) %>%
+    group_by(group, Diagnostic) %>% 
+    summarise(
+      n_direct_bc_death = sum(n[Outcome == "direct_bc_death"]),
+      n_total_death = sum(n[Outcome != "survival"])
+    ) %>% 
+    ungroup()
+  s2 <- s1 %>% 
+    group_by(group) %>% 
+    summarise(n_direct_bc_death = sum(n_direct_bc_death), n_total_death = sum(n_total_death)) %>% 
+    mutate(Diagnostic = "Both")
+  bind_rows(s1, s2) %>% 
+    mutate(prop = n_direct_bc_death / n_total_death)
+}
