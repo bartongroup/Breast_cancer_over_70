@@ -34,6 +34,13 @@ make_cases <- list(
   ))
 )
 
+# ----- Constants
+
+constants <- list(
+  tar_target(FIG_DIR, "fig"),
+  tar_target(test_fig_dir, if(!dir.exists(FIG_DIR)) dir.create(FIG_DIR))
+)
+
 # ----- Read and process input data
 
 read_data <- list(
@@ -147,10 +154,10 @@ regression <- list(
 # ----- Create figures for the manuscript, save in "pdf" subdirectory
 
 manuscript_figures <- list(
-  tar_target(fig_1, make_figure_1(set)),
-  tar_target(fig_2, make_figure_2(cases, dbc_logit, summ_sym, summ_screen)),
-  tar_target(fig_3, make_figure_3(set)),
-  tar_target(fig_4, make_figure_4())
+  tar_target(fig_1, make_figure_1(set, FIG_DIR)),
+  tar_target(fig_2, make_figure_2(cases, dbc_logit, summ_sym, summ_screen, FIG_DIR)),
+  tar_target(fig_3, make_figure_3(set, FIG_DIR)),
+  tar_target(fig_4, make_figure_4(FIG_DIR))
   
 )
 
@@ -164,6 +171,7 @@ sesinfo <- list(
 ### ----- All targets
 
 c(
+  constants,
   make_cases,
   read_data,
   filter_data,

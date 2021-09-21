@@ -19,8 +19,6 @@ library(targets)
 library(tidyverse)
 library(knitr)
 library(kableExtra)
-pdf_dir <- "pdf"
-if(!dir.exists(pdf_dir)) dir.create(pdf_dir)
 pdf_url <- "http://www.compbio.dundee.ac.uk/user/mgierlinski/breastcancer/pdf/"
 ```
 
@@ -368,5 +366,5 @@ g
 
 file <- "screen_sym_proportions.pdf"
 link_ss <- paste0(pdf_url, file)
-ggsave(file.path(pdf_dir, file), plot = g, device = "pdf", width=8, height=5)
+ggsave(file.path(FIG_DIR, file), plot = g, device = "pdf", width=8, height=5)
 ```

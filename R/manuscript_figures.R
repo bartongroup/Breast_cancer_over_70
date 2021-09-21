@@ -1,4 +1,4 @@
-make_figure_1 <- function(set) {
+make_figure_1 <- function(set, FIG_DIR) {
   ds <- set$summ %>% 
     group_by(Age) %>% 
     summarise(direct = sum(n[Outcome == "direct_bc_death"]), s = sum(n[Outcome != "survival"]), n = sum(n), p = s / n)
@@ -26,7 +26,7 @@ make_figure_1 <- function(set) {
     scale_y_continuous(expand=c(0,0), limits=c(0,1))
   
   file <- "fig_1.pdf"
-  ggsave(file.path("pdf", file), plot = pl, device = "pdf", width=4, height=3)
+  ggsave(file.path(FIG_DIR, file), plot = pl, device = "pdf", width=4, height=3)
   
   tab <- ds %>% 
     mutate(Survivals = n - s, `Percentage died` = p * 100) %>% 
@@ -40,7 +40,7 @@ make_figure_1 <- function(set) {
 }
 
 
-make_figure_2 <- function(cases, dbc_logit, summ_sym, summ_screen) {
+make_figure_2 <- function(cases, dbc_logit, summ_sym, summ_screen, FIG_DIR) {
   m <- dbc_logit %>% mutate(x=Midage, y=prob)
   
   g1 <- plot_death_prop(summ_sym, cases, mod=filter(m, Diagnostic == "symptomatic")) + labs(title="Symptomatic patients")
@@ -48,7 +48,7 @@ make_figure_2 <- function(cases, dbc_logit, summ_sym, summ_screen) {
   pl <- cowplot::plot_grid(g1, g2, nrow=1, align="h")
   
   file <- "fig_2.pdf"
-  ggsave(file.path("pdf", file), plot = pl, device = "pdf", width=8, height=3)
+  ggsave(file.path(FIG_DIR, file), plot = pl, device = "pdf", width=8, height=3)
   
   list(
     plot = pl,
@@ -57,11 +57,11 @@ make_figure_2 <- function(cases, dbc_logit, summ_sym, summ_screen) {
 }
 
 
-make_figure_3 <- function(set) {
+make_figure_3 <- function(set, FIG_DIR) {
   g1 <- set$summ %>%
     filter(Midage < 75) %>%
     group_age() %>%
-    plot_group_age(what="proportion", x="Outcome", group="Diagnostic", ymax=1) +
+    plot_group_age(what="proportion", x="Outcome", group="Diagnostic", ymax=1, palette=c("grey50", "grey90")) +
       theme(axis.text.x = element_text(angle=40, hjust=1)) +
       ggtitle("26-75") + theme(legend.position = "none") +
       labs(y="Proportion", fill="Diagnostic route")
@@ -69,15 +69,15 @@ make_figure_3 <- function(set) {
   g2 <- set$summ %>%
     filter(Midage > 75) %>%
     group_age() %>%
-    plot_group_age(what="proportion", x="Outcome", group="Diagnostic", ymax=1) +
+    plot_group_age(what="proportion", x="Outcome", group="Diagnostic", ymax=1, palette=c("grey50", "grey90")) +
       theme(axis.text.x = element_text(angle=40, hjust=1)) +
       ggtitle("76+") + 
       labs(y=NULL)
   
-  pl <- cowplot::plot_grid(g1, g2, nrow=1, align = "h", rel_widths = c(1,1.3))
+  pl <- cowplot::plot_grid(g1, g2, nrow=1, align = "h", rel_widths = c(1,1.45))
   
   file <- "fig_3.pdf"
-  ggsave(file.path("pdf", file), plot = pl, device = "pdf", width=8, height=3)
+  ggsave(file.path(FIG_DIR, file), plot = pl, device = "pdf", width=6, height=3)
   
   list(
     plot = pl,
@@ -86,7 +86,7 @@ make_figure_3 <- function(set) {
 }
 
 
-make_figure_4 <- function() {
+make_figure_4 <- function(FIG_DIR) {
   ass71 <- tribble(
     ~assessment, ~n,
     "High risk", 122,
@@ -113,7 +113,7 @@ make_figure_4 <- function() {
     labs(x=NULL, y="Patient count")
   
   file <- "fig_4.pdf"
-  ggsave(file.path("pdf", file), plot = pl, device = "pdf", width=4, height=2.5)
+  ggsave(file.path(FIG_DIR, file), plot = pl, device = "pdf", width=4, height=2.5)
   
   list(
     plot = pl,

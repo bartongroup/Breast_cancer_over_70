@@ -67,7 +67,7 @@ plot_outcome_proportion <- function(d, value, others, tit=NULL, err="se") {
 }
 
 
-plot_group_age <- function(d, what="count", pos="dodge", x="Diagnostic", group="Outcome", ymax=NA) {
+plot_group_age <- function(d, what="count", pos="dodge", x="Diagnostic", group="Outcome", ymax=NA, palette=NULL) {
   d <- d %>%
     mutate(Outcome = recode_factor(Outcome, 
                                    "direct_bc_death" = "Direct BC death",
@@ -92,6 +92,8 @@ plot_group_age <- function(d, what="count", pos="dodge", x="Diagnostic", group="
     max.y <- max(d$p_up) * 1.03
   }
   
+  if(is.null(palette)) palette <- okabe_ito_palette
+  
   g <- ggplot(d, aes(x=x, y=y, group=group, fill=group)) +
     geom_col(position = pos, width=0.6, colour="grey30") +
     theme_bw() +
@@ -100,7 +102,7 @@ plot_group_age <- function(d, what="count", pos="dodge", x="Diagnostic", group="
       panel.grid.minor.x = element_blank(),
       panel.grid.minor.y = element_blank()
     ) +
-    scale_fill_manual(values=okabe_ito_palette) +
+    scale_fill_manual(values=palette) +
     scale_y_continuous(expand=c(0,0), limits=c(0, max.y)) +
     labs(x=NULL, y=what)
   if(pos == "dodge" & what == "proportion") {
