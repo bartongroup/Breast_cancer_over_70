@@ -57,7 +57,7 @@ make_fisher_tables <- function(d, cases) {
       nest(data = c(s.x, f.x, s.y, f.y)) %>% 
       mutate(
         test = map(data, ~fisher.test(matrix(c(.x$s.x, .x$s.y, .x$f.x, .x$f.y), nrow=2))),
-        tidied = map(test, tidy)
+        tidied = map(test, broom::tidy)
       ) %>% 
       unnest(c(tidied, data)) %>% 
       rename(bc_screen = s.x, all_screen = n.x, bc_sym = s.y, all_sym = n.y, odds_ratio=estimate) %>% 
@@ -94,7 +94,7 @@ fisher_75 <- function(over_75) {
     nest(data = -Outcome) %>% 
     mutate(
       test = map(data, ~fisher.test(matrix(c(.x$n_symptomatic, .x$s_symptomatic, .x$n_screening, .x$s_screening), nrow=2))),
-      tidied = map(test, tidy)
+      tidied = map(test, broom::tidy)
     ) %>% 
     unnest(c(tidied, data)) %>% 
     select(-c(test, method, alternative))
@@ -123,8 +123,8 @@ time_course_fit <- function(d, value, others, min.age) {
     find_outcome_proportion(value, others) %>% 
     filter(Midage >= min.age) %>% 
     select(x = Midage, y = p, se)
-  m = nls(y ~ 0.5 - Slope*Half + Slope*x, start=list(Slope=-0.1, Half=70), weights=1/se^2, data=dx)
-  cbind(summary(m)$coefficients, confint2(m)) %>% 
+  m <- nls(y ~ 0.5 - Slope*Half + Slope*x, start=list(Slope=-0.1, Half=70), weights=1/se^2, data=dx)
+  cbind(summary(m)$coefficients, nlstools::confint2(m)) %>% 
     as.data.frame %>%
     rownames_to_column(var="Parameter")
 }

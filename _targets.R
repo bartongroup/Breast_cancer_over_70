@@ -3,6 +3,7 @@
 #  tar_make()
 
 library(targets)
+library(qs)
 
 packages <- c("nlstools", "cowplot", "broom", "tidyverse")
 tar_option_set(packages = packages, format = "qs")
